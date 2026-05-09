@@ -1,0 +1,77 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+:root {
+  --cmu-primary:       #4B1E78;
+  --cmu-primary-dark:  #3A1660;
+  --cmu-accent:        #7B3FA0;
+  --cmu-gold:          #C9A227;
+  --cmu-gold-light:    #F0D875;
+  --cmu-bg:            rgba(255, 255, 255, 0.10);
+  --cmu-bg-card:       rgba(255, 255, 255, 0.82);
+  --cmu-bg-card-hover: rgba(255, 255, 255, 0.92);
+  --cmu-border:        rgba(255, 255, 255, 0.45);
+  --cmu-border-strong: rgba(255, 255, 255, 0.70);
+  --cmu-text:          #1A0A2E;
+  --cmu-text-sub:      #3d1a5e;
+  --cmu-text-muted:    #6b4e91;
+  --cmu-star:          #F59E0B;
+  --cmu-star-empty:    #c4a8d8;
+  --cmu-error:         #dc2626;
+  --cmu-success:       #15803d;
+  --cmu-success-bg:    rgba(240, 253, 244, 0.9);
+  --cmu-success-border:#bbf7d0;
+
+  /* glass surface for inputs / selects */
+  --cmu-input-bg:      rgba(255, 255, 255, 0.88);
+  --cmu-input-border:  rgba(180, 140, 220, 0.55);
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background-color: #1a0535;
+  background-image: url('/background.jpg');
+  background-size: cover;
+  background-position: center bottom;
+  background-attachment: fixed;
+  color: var(--cmu-text);
+  font-family: 'Sarabun', 'Segoe UI', system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; }
+
+input, select, textarea, button {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+input, select, textarea {
+  outline: none;
+  background: var(--cmu-input-bg);
+  border: 1px solid var(--cmu-input-border);
+  border-radius: 8px;
+  color: var(--cmu-text);
+  transition: border-color 0.15s, box-shadow 0.15s;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--cmu-accent) !important;
+  box-shadow: 0 0 0 3px rgba(123, 63, 160, 0.20);
+}
+
+/* Glass card mixin — apply to any card div */
+.glass {
+  background: var(--cmu-bg-card);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--cmu-border);
+  border-radius: 12px;
+}

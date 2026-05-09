@@ -1,0 +1,2 @@
+DROP VIEW IF EXISTS course_stats;
+DROP TABLE IF EXISTS reviews;

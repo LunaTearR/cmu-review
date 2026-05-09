@@ -1,0 +1,10 @@
+# env
+.env
+
+# build output
+# server
+*.exe
+
+# Go test cache
+*.test
+*.out
