@@ -33,8 +33,6 @@ func (uc *ListCoursesUseCase) Execute(ctx context.Context, in ListCoursesInput) 
 		in.Limit = 20
 	}
 
-	// Sanitize at the use case boundary: strip control chars, enforce max length.
-	// The repo layer handles DB-specific escaping (LIKE special chars).
 	in.Search = search.Sanitize(in.Search)
 
 	return uc.repo.List(ctx, repository.CourseListOpts{

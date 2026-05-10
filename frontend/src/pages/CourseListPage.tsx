@@ -3,11 +3,22 @@ import type { Course } from '@/types/course'
 import type { Faculty } from '@/types/faculty'
 import { fetchCourses, fetchFaculties } from '@/api/courses'
 import { CourseCard } from '@/components/CourseCard'
+import { SearchableSelect } from '@/components/SearchableSelect'
+import type { SelectOption } from '@/components/SearchableSelect'
 import { input as inputStyle } from '@/theme'
 
 const LIMIT = 20
 
-const CREDITS_OPTIONS = [1, 2, 3, 4, 5, 6]
+const CREDITS_OPTIONS: SelectOption[] = [
+  { value: '', label: 'ทุกหน่วยกิต' },
+  ...[1, 2, 3, 4, 5, 6].map(c => ({ value: c, label: `${c} หน่วยกิต`, searchKeys: [String(c)] })),
+]
+
+const SORT_OPTIONS: SelectOption[] = [
+  { value: 'code',    label: 'เรียงตามรหัส' },
+  { value: 'rating',  label: 'คะแนนสูงสุด' },
+  { value: 'reviews', label: 'รีวิวมากสุด' },
+]
 
 export function CourseListPage() {
   const [courses, setCourses] = useState<Course[]>([])
@@ -25,11 +36,27 @@ export function CourseListPage() {
     fetchFaculties().then(setFaculties).catch(console.error)
   }, [])
 
+  const facultyOptions: SelectOption[] = [
+    { value: '', label: 'ทุกคณะ' },
+    ...faculties.map(f => ({
+      value: f.code,
+      label: f.name_th,
+      searchKeys: [f.name_en, f.code],
+    })),
+  ]
+
   const loadInitial = useCallback(async (f: typeof filters) => {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetchCourses({ search: f.search, faculty: f.faculty, credits: f.credits || undefined, sort: f.sort, limit: LIMIT, page: 1 })
+      const res = await fetchCourses({
+        search: f.search,
+        faculty: f.faculty,
+        credits: f.credits || undefined,
+        sort: f.sort,
+        limit: LIMIT,
+        page: 1,
+      })
       setCourses(res.data)
       setTotal(res.total)
       setOffset(res.data.length)
@@ -46,9 +73,16 @@ export function CourseListPage() {
     setLoadingMore(true)
     try {
       const page = Math.floor(offset / LIMIT) + 1
-      const res = await fetchCourses({ search: filters.search, faculty: filters.faculty, credits: filters.credits || undefined, sort: filters.sort, limit: LIMIT, page })
-      setCourses((prev) => [...prev, ...res.data])
-      setOffset((prev) => prev + res.data.length)
+      const res = await fetchCourses({
+        search: filters.search,
+        faculty: filters.faculty,
+        credits: filters.credits || undefined,
+        sort: filters.sort,
+        limit: LIMIT,
+        page,
+      })
+      setCourses(prev => [...prev, ...res.data])
+      setOffset(prev => prev + res.data.length)
     } catch {
       setError('โหลดข้อมูลไม่สำเร็จ')
     } finally {
@@ -58,55 +92,48 @@ export function CourseListPage() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-    setFilters((f) => ({ ...f, search: searchInput }))
-  }
-
-  const setFilter = (key: keyof typeof filters) => (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = key === 'credits' ? Number(e.target.value) : e.target.value
-    setFilters((f) => ({ ...f, [key]: value }))
+    setFilters(f => ({ ...f, search: searchInput }))
   }
 
   const hasMore = courses.length < total
-  // 0.875 → 0.9375rem: filter selects match base scale
-  const selectStyle: React.CSSProperties = { ...inputStyle, width: 'auto', fontSize: '0.9375rem' }
 
   return (
     <div>
-      {/* Page header */}
       <div style={{ marginBottom: '1.25rem' }}>
-        {/* 1.375 → 1.5rem (--t-xl): clearer page-level heading */}
         <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: 'var(--cmu-primary)', lineHeight: 1.25 }}>
           รีวิววิชาเรียน มช.
         </h1>
-        {/* 0.875 → 0.9375rem: subtitle closer to base for readability */}
         <p style={{ margin: '0.25rem 0 0', fontSize: '0.9375rem', color: 'var(--cmu-text-muted)', lineHeight: 1.5 }}>
           ค้นหาและอ่านรีวิวจากรุ่นพี่ก่อนลงทะเบียน
         </p>
       </div>
 
-      {/* Search + filters */}
       <form onSubmit={handleSearch} className="filter-bar">
         <input
           value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
+          onChange={e => setSearchInput(e.target.value)}
           placeholder="ค้นหาชื่อวิชา หรือรหัสวิชา..."
           className="filter-search"
           style={{ ...inputStyle, fontSize: '0.9375rem' }}
         />
-        <select value={filters.faculty} onChange={setFilter('faculty')} style={selectStyle}>
-          <option value="">ทุกคณะ</option>
-          {faculties.map((f) => <option key={f.id} value={f.code}>{f.name_th}</option>)}
-        </select>
-        <select value={filters.credits || ''} onChange={setFilter('credits')} style={selectStyle}>
-          <option value="">ทุกหน่วยกิต</option>
-          {CREDITS_OPTIONS.map((c) => <option key={c} value={c}>{c} หน่วยกิต</option>)}
-        </select>
-        <select value={filters.sort} onChange={setFilter('sort')} style={selectStyle}>
-          <option value="code">เรียงตามรหัส</option>
-          <option value="rating">คะแนนสูงสุด</option>
-          <option value="reviews">รีวิวมากสุด</option>
-        </select>
-        {/* 0.875 → 0.9375rem: button text matches filter inputs */}
+        <SearchableSelect
+          options={facultyOptions}
+          value={filters.faculty}
+          onChange={v => setFilters(f => ({ ...f, faculty: String(v) }))}
+          placeholder="ทุกคณะ"
+        />
+        <SearchableSelect
+          options={CREDITS_OPTIONS}
+          value={filters.credits || ''}
+          onChange={v => setFilters(f => ({ ...f, credits: Number(v) }))}
+          placeholder="ทุกหน่วยกิต"
+        />
+        <SearchableSelect
+          options={SORT_OPTIONS}
+          value={filters.sort}
+          onChange={v => setFilters(f => ({ ...f, sort: String(v) }))}
+          placeholder="เรียงตามรหัส"
+        />
         <button type="submit" style={{
           padding: '0.5rem 1.125rem',
           background: 'var(--cmu-primary)',
@@ -121,7 +148,6 @@ export function CourseListPage() {
         </button>
       </form>
 
-      {/* Count — 0.8 → 0.875rem: metadata label, acceptable at --t-sm */}
       {!loading && (
         <p style={{ fontSize: '0.875rem', color: 'var(--cmu-text-muted)', marginBottom: '0.75rem' }}>
           พบ <strong style={{ color: 'var(--cmu-primary)' }}>{total}</strong> วิชา
@@ -148,12 +174,11 @@ export function CourseListPage() {
       ) : (
         <>
           <div className="course-grid">
-            {courses.map((c) => <CourseCard key={c.id} course={c} />)}
+            {courses.map(c => <CourseCard key={c.id} course={c} />)}
           </div>
 
           {hasMore && (
             <div style={{ textAlign: 'center', marginTop: '1.25rem' }}>
-              {/* 0.9 → 0.9375rem: load more button matches scale */}
               <button
                 onClick={loadMore}
                 disabled={loadingMore}

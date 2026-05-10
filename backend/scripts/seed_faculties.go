@@ -33,9 +33,11 @@ var cmuFaculties = []faculty{
 	{"MC", "คณะการสื่อสารมวลชน", "Faculty of Mass Communication"},
 	{"POLSCI", "คณะรัฐศาสตร์และรัฐประศาสนศาสตร์", "Faculty of Political Science and Public Administration"},
 	{"ARCH", "คณะสถาปัตยกรรมศาสตร์", "Faculty of Architecture"},
-	{"ICMU", "วิทยาลัยนานาชาติ", "International College"},
+	{"ICDI", "วิทยาลัยนานาชาตินวัตกรรมดิจิทัล", "International College of Digital Innovation"},
+	{"MIS", "วิทยาลัยพหุวิทยาการและสหวิทยาการ", "Multidisciplinary and Interdisciplinary School"},
 	{"CAMT", "วิทยาลัยศิลปะ สื่อ และเทคโนโลยี", "College of Arts, Media and Technology"},
-	{"GRAD", "บัณฑิตวิทยาลัย", "Graduate School"},
+	{"SPC", "สถาบันนโยบายสาธารณะ", "School of Public Policy Chiang Mai University"},
+	{"BEI", "สถาบันวิศวกรรมชีวการแพทย์", "Biomedical Engineering Institute"},
 }
 
 func SeedFaculties(db *sql.DB) error {
