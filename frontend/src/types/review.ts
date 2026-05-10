@@ -5,6 +5,9 @@ export interface Review {
   academic_year: number
   semester: number
   content: string
+  category?: string
+  program?: string
+  professor?: string
   created_at: string
 }
 
@@ -21,4 +24,7 @@ export interface CreateReviewPayload {
   academic_year: number
   semester: number
   content: string
+  category?: string
+  program?: string
+  professor?: string
 }

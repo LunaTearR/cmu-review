@@ -121,7 +121,7 @@ Base path: `/api/v1`
 │       ├── api/             # fetch wrappers (client.ts, courses.ts, reviews.ts)
 │       ├── types/           # TypeScript interfaces mirroring backend DTOs
 │       ├── pages/           # CourseListPage, CourseDetailPage
-│       └── components/      # CourseCard, ReviewCard, ReviewForm, StarRating
+│       └── components/      # CourseCard, ReviewCard, ReviewForm, Rating
 ├── docker-compose.yml
 ├── Makefile
 └── .env                     # not committed — create from .env.example

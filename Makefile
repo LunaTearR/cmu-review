@@ -1,4 +1,4 @@
-.PHONY: help dev build up down restart logs \
+.PHONY: help dev dev-build dev-down dev-logs build up down restart logs \
         api-run api-build api-tidy api-lint \
         fe-install fe-dev fe-build \
         migrate-up migrate-down migrate-create \
@@ -37,8 +37,11 @@ logs: ## Tail logs (all services); override with svc=api|frontend|postgres
 
 # ── Backend ───────────────────────────────────────────────────────────────────
 
-api-run: ## Run backend locally
+api-run: ## Run backend locally (no hot reload)
 	cd $(BACKEND_DIR) && go run ./cmd/main.go
+
+api-dev: ## Run backend with hot reload (requires air: go install github.com/air-verse/air@latest)
+	cd $(BACKEND_DIR) && air
 
 api-build: ## Compile backend binary
 	cd $(BACKEND_DIR) && CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/server ./cmd/main.go
@@ -84,6 +87,14 @@ seed-faculties: ## Seed all CMU faculties into the database
 clean: ## Remove backend binary
 	rm -f $(BACKEND_DIR)/bin/server
 
-dev: ## Start DB + backend + frontend dev (foreground)
-	$(MAKE) up
-	$(MAKE) -j2 api-run fe-dev
+dev: ## Start all services in Docker with hot reload
+	docker compose -f docker-compose.dev.yml up -d
+
+dev-build: ## Build dev images and start
+	docker compose -f docker-compose.dev.yml up -d --build
+
+dev-down: ## Stop dev services
+	docker compose -f docker-compose.dev.yml down
+
+dev-logs: ## Tail dev logs; override with svc=backend|frontend|postgres
+	docker compose -f docker-compose.dev.yml logs -f $(svc)

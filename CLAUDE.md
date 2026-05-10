@@ -148,7 +148,7 @@ frontend/src/
   api/reviews.ts        # reviews API calls
   types/                # TypeScript interfaces mirroring backend DTOs
   pages/                # route-level components (CourseListPage, CourseDetailPage)
-  components/           # shared UI (CourseCard, ReviewCard, ReviewForm, StarRating)
+  components/           # shared UI (CourseCard, ReviewCard, ReviewForm, Rating)
   App.tsx               # React Router routes: / and /courses/:id
 ```
 

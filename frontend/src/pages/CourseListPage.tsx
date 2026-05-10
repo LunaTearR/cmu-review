@@ -67,27 +67,31 @@ export function CourseListPage() {
   }
 
   const hasMore = courses.length < total
-  const selectStyle: React.CSSProperties = { ...inputStyle, width: 'auto', fontSize: '0.875rem' }
+  // 0.875 → 0.9375rem: filter selects match base scale
+  const selectStyle: React.CSSProperties = { ...inputStyle, width: 'auto', fontSize: '0.9375rem' }
 
   return (
     <div>
-      {/* Compact header */}
+      {/* Page header */}
       <div style={{ marginBottom: '1.25rem' }}>
-        <h1 style={{ margin: 0, fontSize: '1.375rem', fontWeight: 800, color: 'var(--cmu-primary)' }}>
+        {/* 1.375 → 1.5rem (--t-xl): clearer page-level heading */}
+        <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: 'var(--cmu-primary)', lineHeight: 1.25 }}>
           รีวิววิชาเรียน มช.
         </h1>
-        <p style={{ margin: '0.2rem 0 0', fontSize: '0.875rem', color: 'var(--cmu-text-muted)' }}>
+        {/* 0.875 → 0.9375rem: subtitle closer to base for readability */}
+        <p style={{ margin: '0.25rem 0 0', fontSize: '0.9375rem', color: 'var(--cmu-text-muted)', lineHeight: 1.5 }}>
           ค้นหาและอ่านรีวิวจากรุ่นพี่ก่อนลงทะเบียน
         </p>
       </div>
 
-      {/* Search + 3 filters in one row */}
-      <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.875rem', flexWrap: 'wrap' }}>
+      {/* Search + filters */}
+      <form onSubmit={handleSearch} className="filter-bar">
         <input
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           placeholder="ค้นหาชื่อวิชา หรือรหัสวิชา..."
-          style={{ ...inputStyle, flex: 1, minWidth: 180, fontSize: '0.875rem' }}
+          className="filter-search"
+          style={{ ...inputStyle, fontSize: '0.9375rem' }}
         />
         <select value={filters.faculty} onChange={setFilter('faculty')} style={selectStyle}>
           <option value="">ทุกคณะ</option>
@@ -102,37 +106,39 @@ export function CourseListPage() {
           <option value="rating">คะแนนสูงสุด</option>
           <option value="reviews">รีวิวมากสุด</option>
         </select>
+        {/* 0.875 → 0.9375rem: button text matches filter inputs */}
         <button type="submit" style={{
-          padding: '0.5rem 1rem',
+          padding: '0.5rem 1.125rem',
           background: 'var(--cmu-primary)',
           color: '#fff',
           border: 'none',
           borderRadius: 8,
           cursor: 'pointer',
           fontWeight: 700,
-          fontSize: '0.875rem',
+          fontSize: '0.9375rem',
         }}>
           ค้นหา
         </button>
       </form>
 
-      {/* Count */}
+      {/* Count — 0.8 → 0.875rem: metadata label, acceptable at --t-sm */}
       {!loading && (
-        <p style={{ fontSize: '0.8rem', color: 'var(--cmu-text-muted)', marginBottom: '0.75rem' }}>
+        <p style={{ fontSize: '0.875rem', color: 'var(--cmu-text-muted)', marginBottom: '0.75rem' }}>
           พบ <strong style={{ color: 'var(--cmu-primary)' }}>{total}</strong> วิชา
         </p>
       )}
 
       {error && (
-        <div style={{ color: 'var(--cmu-error)', marginBottom: '0.75rem', fontWeight: 600 }}>{error}</div>
+        <div style={{ color: 'var(--cmu-error)', marginBottom: '0.75rem', fontWeight: 600, fontSize: '0.9375rem' }}>{error}</div>
       )}
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--cmu-text-muted)' }}>กำลังโหลด...</div>
+        <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--cmu-text-muted)', fontSize: '0.9375rem' }}>กำลังโหลด...</div>
       ) : courses.length === 0 ? (
         <div style={{
           textAlign: 'center', padding: '3rem 1rem',
           color: 'var(--cmu-text-muted)',
+          fontSize: '0.9375rem',
           background: '#fff',
           borderRadius: 12,
           border: '1px solid rgba(180,140,220,0.30)',
@@ -141,10 +147,13 @@ export function CourseListPage() {
         </div>
       ) : (
         <>
-          {courses.map((c) => <CourseCard key={c.id} course={c} />)}
+          <div className="course-grid">
+            {courses.map((c) => <CourseCard key={c.id} course={c} />)}
+          </div>
 
           {hasMore && (
-            <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+            <div style={{ textAlign: 'center', marginTop: '1.25rem' }}>
+              {/* 0.9 → 0.9375rem: load more button matches scale */}
               <button
                 onClick={loadMore}
                 disabled={loadingMore}
@@ -156,7 +165,7 @@ export function CourseListPage() {
                   borderRadius: 8,
                   cursor: loadingMore ? 'not-allowed' : 'pointer',
                   fontWeight: 700,
-                  fontSize: '0.9rem',
+                  fontSize: '0.9375rem',
                 }}
               >
                 {loadingMore ? 'กำลังโหลด...' : `โหลดเพิ่ม (${total - courses.length} วิชา)`}

@@ -5,6 +5,7 @@ import (
 
 	"cmu-review-backend/internal/domain/entity"
 	"cmu-review-backend/internal/domain/repository"
+	"cmu-review-backend/internal/usecase/search"
 )
 
 type ListCoursesInput struct {
@@ -31,6 +32,11 @@ func (uc *ListCoursesUseCase) Execute(ctx context.Context, in ListCoursesInput) 
 	if in.Limit < 1 || in.Limit > 100 {
 		in.Limit = 20
 	}
+
+	// Sanitize at the use case boundary: strip control chars, enforce max length.
+	// The repo layer handles DB-specific escaping (LIKE special chars).
+	in.Search = search.Sanitize(in.Search)
+
 	return uc.repo.List(ctx, repository.CourseListOpts{
 		Search:  in.Search,
 		Faculty: in.Faculty,

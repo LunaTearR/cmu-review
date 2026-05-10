@@ -4,7 +4,7 @@ import type { Course } from '@/types/course'
 import type { Review } from '@/types/review'
 import { fetchCourse } from '@/api/courses'
 import { fetchReviews, createReview } from '@/api/reviews'
-import { StarRating } from '@/components/StarRating'
+import { Rating } from '@/components/Rating'
 import { ReviewCard } from '@/components/ReviewCard'
 import { ReviewForm } from '@/components/ReviewForm'
 import type { CreateReviewPayload } from '@/types/review'
@@ -56,128 +56,142 @@ export function CourseDetailPage() {
   const totalPages = Math.ceil(total / LIMIT)
 
   if (courseLoading) return (
-    <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--cmu-text-muted)' }}>กำลังโหลด...</div>
+    <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--cmu-text-muted)', fontSize: '0.9375rem' }}>กำลังโหลด...</div>
   )
   if (!course) return (
-    <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--cmu-error)', fontWeight: 600 }}>ไม่พบวิชานี้</div>
+    <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--cmu-error)', fontWeight: 600, fontSize: '0.9375rem' }}>ไม่พบวิชานี้</div>
   )
 
   const pageBtn = (disabled: boolean): React.CSSProperties => ({
-    padding: '0.375rem 0.875rem',
+    padding: '0.4rem 1rem',
     borderRadius: 8,
     border: '1px solid var(--cmu-border-strong)',
     background: disabled ? 'var(--cmu-bg)' : 'var(--cmu-bg-card)',
     color: disabled ? 'var(--cmu-text-muted)' : 'var(--cmu-primary)',
     cursor: disabled ? 'not-allowed' : 'pointer',
     fontWeight: 600,
+    fontSize: '0.9375rem',
   })
 
   return (
     <div>
-      <Link to="/" style={{ color: 'var(--cmu-accent)', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 600 }}>
+      <Link to="/" style={{ color: 'var(--cmu-accent)', textDecoration: 'none', fontSize: '0.9375rem', fontWeight: 600 }}>
         ← กลับ
       </Link>
 
-      {/* Course header card */}
-      <div style={{
-        background: 'rgba(75, 30, 120, 0.68)',
-        backdropFilter: 'blur(18px)',
-        WebkitBackdropFilter: 'blur(18px)',
-        border: '1px solid rgba(201,162,39,0.35)',
-        boxShadow: '0 4px 32px rgba(0,0,0,0.3)',
-        borderRadius: 14,
-        padding: '1.5rem 1.75rem',
-        marginTop: '1rem',
-        marginBottom: '1.5rem',
-        color: '#fff',
-      }}>
-        <span style={{ fontSize: '0.8rem', opacity: 0.8, fontWeight: 600 }}>
-          {course.course_id} &nbsp;·&nbsp; {course.credits} หน่วยกิต &nbsp;·&nbsp; {course.faculty.name_th}
-        </span>
-        <h1 style={{ margin: '0.25rem 0 0', fontSize: '1.5rem', fontWeight: 800 }}>{course.name_th}</h1>
-        <p style={{ margin: '0.125rem 0 0', opacity: 0.85 }}>{course.name_en}</p>
+      <div className="detail-layout" style={{ marginTop: '1rem' }}>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.875rem' }}>
-          <StarRating value={Math.round(course.avg_rating)} />
-          <span style={{ fontWeight: 800, fontSize: '1.25rem' }}>{course.avg_rating.toFixed(1)}</span>
-          <span style={{ opacity: 0.8, fontSize: '0.875rem' }}>({course.review_count} รีวิว)</span>
-        </div>
+        {/* ── Sidebar: course info + write review ── */}
+        <div className="detail-sidebar">
+          <div style={{
+            background: 'rgba(75, 30, 120, 0.68)',
+            backdropFilter: 'blur(18px)',
+            WebkitBackdropFilter: 'blur(18px)',
+            border: '1px solid rgba(201,162,39,0.35)',
+            boxShadow: '0 4px 32px rgba(0,0,0,0.3)',
+            borderRadius: 14,
+            padding: '1.375rem 1.5rem',
+            marginBottom: '0.875rem',
+            color: '#fff',
+          }}>
+            <span style={{ fontSize: '0.875rem', opacity: 0.85, fontWeight: 600 }}>
+              {course.course_id} &nbsp;·&nbsp; {course.credits} หน่วยกิต &nbsp;·&nbsp; {course.faculty.name_th}
+            </span>
+            <h1 style={{ margin: '0.3rem 0 0', fontSize: '1.5rem', fontWeight: 800, lineHeight: 1.3 }}>{course.name_th}</h1>
+            <p style={{ margin: '0.2rem 0 0', opacity: 0.85, fontSize: '0.9375rem', lineHeight: 1.5 }}>{course.name_en}</p>
 
-        {course.description && (
-          <p style={{ marginTop: '0.875rem', opacity: 0.9, lineHeight: 1.6, fontSize: '0.925rem', marginBottom: 0 }}>
-            {course.description}
-          </p>
-        )}
-      </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginTop: '0.875rem' }}>
+              <Rating value={Math.round(course.avg_rating)} />
+              <span style={{ fontWeight: 800, fontSize: '1.25rem' }}>{course.avg_rating.toFixed(1)}</span>
+              <span style={{ opacity: 0.8, fontSize: '0.875rem' }}>({course.review_count} รีวิว)</span>
+            </div>
 
-      {/* Reviews section */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <h2 style={{ margin: 0, fontSize: '1.125rem', color: 'var(--cmu-text)' }}>
-          รีวิว <span style={{ color: 'var(--cmu-text-muted)', fontWeight: 400 }}>({total})</span>
-        </h2>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          style={{
-            padding: '0.5rem 1.125rem',
-            background: showForm ? 'transparent' : 'var(--cmu-primary)',
-            color: showForm ? 'var(--cmu-primary)' : '#fff',
-            border: `1px solid ${showForm ? 'var(--cmu-border-strong)' : 'var(--cmu-primary)'}`,
-            borderRadius: 8,
-            cursor: 'pointer',
-            fontWeight: 700,
-            transition: 'all 0.15s',
-          }}
-        >
-          {showForm ? 'ยกเลิก' : '+ เขียนรีวิว'}
-        </button>
-      </div>
+            {course.description && (
+              <p style={{ marginTop: '0.875rem', opacity: 0.9, lineHeight: 1.65, fontSize: '0.9375rem', marginBottom: 0 }}>
+                {course.description}
+              </p>
+            )}
+          </div>
 
-      {showForm && (
-        <div style={{
-          background: '#fff',
-          border: '1px solid rgba(180,140,220,0.35)',
-          borderTop: '3px solid var(--cmu-gold)',
-          borderRadius: 12,
-          padding: '1.25rem',
-          marginBottom: '1.5rem',
-          boxShadow: '0 2px 12px rgba(75,30,120,0.10)',
-        }}>
-          <h3 style={{ margin: '0 0 1rem', color: 'var(--cmu-primary)', fontWeight: 800 }}>เขียนรีวิว</h3>
-          <ReviewForm courseId={courseId} onSubmit={handleSubmitReview} />
-        </div>
-      )}
+          <button
+            onClick={() => setShowForm(!showForm)}
+            style={{
+              width: '100%',
+              padding: '0.675rem 1rem',
+              background: showForm ? 'transparent' : 'var(--cmu-primary)',
+              color: showForm ? 'var(--cmu-primary)' : '#fff',
+              border: `1px solid ${showForm ? 'var(--cmu-border-strong)' : 'var(--cmu-primary)'}`,
+              borderRadius: 8,
+              cursor: 'pointer',
+              fontWeight: 700,
+              fontSize: '0.9375rem',
+              transition: 'all 0.15s',
+              marginBottom: showForm ? '0.875rem' : 0,
+            }}
+          >
+            {showForm ? 'ยกเลิก' : '+ เขียนรีวิว'}
+          </button>
 
-      {reviewsLoading ? (
-        <p style={{ color: 'var(--cmu-text-muted)' }}>กำลังโหลดรีวิว...</p>
-      ) : reviews.length === 0 ? (
-        <div style={{
-          textAlign: 'center',
-          padding: '2.5rem',
-          color: 'var(--cmu-text-muted)',
-          background: '#fff',
-          borderRadius: 12,
-          border: '1px solid rgba(180,140,220,0.30)',
-        }}>
-          ยังไม่มีรีวิว เป็นคนแรกที่รีวิววิชานี้!
-        </div>
-      ) : (
-        <>
-          {reviews.map((rv) => <ReviewCard key={rv.id} review={rv} />)}
-          {totalPages > 1 && (
-            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', justifyContent: 'center', alignItems: 'center' }}>
-              <button onClick={() => loadReviews(page - 1)} disabled={page <= 1} style={pageBtn(page <= 1)}>
-                ← ก่อนหน้า
-              </button>
-              <span style={{ padding: '0.375rem 0.75rem', color: 'var(--cmu-text-sub)', fontWeight: 600 }}>
-                {page} / {totalPages}
-              </span>
-              <button onClick={() => loadReviews(page + 1)} disabled={page >= totalPages} style={pageBtn(page >= totalPages)}>
-                ถัดไป →
-              </button>
+          {showForm && (
+            <div style={{
+              background: '#fff',
+              border: '1px solid rgba(180,140,220,0.35)',
+              borderTop: '3px solid var(--cmu-gold)',
+              borderRadius: 12,
+              padding: '1.25rem',
+              boxShadow: '0 2px 12px rgba(75,30,120,0.10)',
+            }}>
+              <h3 style={{ margin: '0 0 0.875rem', color: 'var(--cmu-primary)', fontWeight: 800, fontSize: '1.125rem' }}>เขียนรีวิว</h3>
+              <ReviewForm courseId={courseId} onSubmit={handleSubmitReview} />
             </div>
           )}
-        </>
-      )}
+        </div>
+
+        {/* ── Main: reviews ── */}
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.875rem' }}>
+            <h2 style={{ margin: 0, fontSize: '1.1875rem', fontWeight: 700, color: 'var(--cmu-text)' }}>
+              รีวิวทั้งหมด{' '}
+              <span style={{ color: 'var(--cmu-text-muted)', fontWeight: 400, fontSize: '1rem' }}>({total})</span>
+            </h2>
+          </div>
+
+          {reviewsLoading ? (
+            <p style={{ color: 'var(--cmu-text-muted)', fontSize: '0.9375rem' }}>กำลังโหลดรีวิว...</p>
+          ) : reviews.length === 0 ? (
+            <div style={{
+              textAlign: 'center',
+              padding: '2.5rem',
+              color: 'var(--cmu-text-muted)',
+              fontSize: '0.9375rem',
+              background: '#fff',
+              borderRadius: 12,
+              border: '1px solid rgba(180,140,220,0.30)',
+            }}>
+              ยังไม่มีรีวิว เป็นคนแรกที่รีวิววิชานี้!
+            </div>
+          ) : (
+            <>
+              <div className="review-grid">
+                {reviews.map((rv) => <ReviewCard key={rv.id} review={rv} />)}
+              </div>
+              {totalPages > 1 && (
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem', justifyContent: 'center', alignItems: 'center' }}>
+                  <button onClick={() => loadReviews(page - 1)} disabled={page <= 1} style={pageBtn(page <= 1)}>
+                    ← ก่อนหน้า
+                  </button>
+                  <span style={{ padding: '0.4rem 0.75rem', color: 'var(--cmu-text-sub)', fontWeight: 600, fontSize: '0.9375rem' }}>
+                    {page} / {totalPages}
+                  </span>
+                  <button onClick={() => loadReviews(page + 1)} disabled={page >= totalPages} style={pageBtn(page >= totalPages)}>
+                    ถัดไป →
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

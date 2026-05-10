@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgconn"
 
@@ -18,6 +19,16 @@ type coursePgRepo struct {
 
 func NewCourseRepo(db *sql.DB) repository.CourseRepository {
 	return &coursePgRepo{db: db}
+}
+
+// escapeLike escapes PostgreSQL LIKE/ILIKE special characters in s so that
+// user input is treated as a literal substring, not a pattern.
+// PostgreSQL LIKE specials: % (any sequence), _ (any single char), \ (escape char).
+func escapeLike(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `%`, `\%`)
+	s = strings.ReplaceAll(s, `_`, `\_`)
+	return s
 }
 
 func (r *coursePgRepo) Exists(ctx context.Context, id int) (bool, error) {
@@ -55,17 +66,48 @@ func (r *coursePgRepo) Create(ctx context.Context, c *entity.Course) (*entity.Co
 }
 
 func (r *coursePgRepo) List(ctx context.Context, opts repository.CourseListOpts) ([]entity.Course, int, error) {
-	where := `
+	// Build ILIKE patterns in Go — they are passed as parameterized values ($4, $5),
+	// so PostgreSQL never interprets user input as SQL or regex syntax.
+	//
+	// Two patterns:
+	//   likeContains  — "%term%" — matches substring anywhere in name_en / name_th
+	//   likePrefix    — "term%"  — matches course_id prefix (e.g. "261" → "261101")
+	//                             uses the existing B-tree index on courses.course_id
+	//
+	// escapeLike escapes %, _, \ so user input is always literal.
+	escaped := escapeLike(opts.Search)
+	likeContains := "%" + escaped + "%"
+
+	// Search strategy (applied when opts.Search != ""):
+	//
+	//   OR-1 (FTS):    GIN index on to_tsvector catches full-word queries in Thai/EN.
+	//                  plainto_tsquery is safe: tokenises input, no raw regex to DB.
+	//
+	//   OR-2 (ILIKE contains): catches partial name matches ("intro" → "Introduction").
+	//                  Sequential scan on small tables; add pg_trgm GIN index for scale.
+	//
+	//   OR-3 (ILIKE contains on course_id): catches substring code matches
+	//                  ("111" → "204111"). Same $4 pattern as name search.
+	//
+	// When opts.Search is empty the entire AND block short-circuits via "$3 = ''".
+	const where = `
 		WHERE ($1 = '' OR f.code = $1)
 		  AND ($2 = 0  OR c.credits = $2)
-		  AND ($3 = '' OR to_tsvector('simple', c.name_th || ' ' || c.name_en || ' ' || c.course_id)
-		       @@ plainto_tsquery('simple', $3))`
+		  AND ($3 = '' OR (
+		        to_tsvector('simple', c.name_th || ' ' || c.name_en || ' ' || c.course_id)
+		          @@ plainto_tsquery('simple', $3)
+		        OR c.name_en   ILIKE $4 ESCAPE '\'
+		        OR c.name_th   ILIKE $4 ESCAPE '\'
+		        OR c.course_id ILIKE $4 ESCAPE '\'
+		      ))`
 
 	countQ := `SELECT COUNT(DISTINCT c.id)
 		FROM courses c JOIN faculties f ON f.id = c.faculty_id` + where
 
 	var total int
-	if err := r.db.QueryRowContext(ctx, countQ, opts.Faculty, opts.Credits, opts.Search).Scan(&total); err != nil {
+	if err := r.db.QueryRowContext(ctx, countQ,
+		opts.Faculty, opts.Credits, opts.Search, likeContains,
+	).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
@@ -88,9 +130,12 @@ func (r *coursePgRepo) List(ctx context.Context, opts repository.CourseListOpts)
 		where + `
 		GROUP BY c.id, f.id
 		ORDER BY ` + orderBy + `
-		LIMIT $4 OFFSET $5`
+		LIMIT $5 OFFSET $6`
 
-	rows, err := r.db.QueryContext(ctx, q, opts.Faculty, opts.Credits, opts.Search, opts.Limit, opts.Offset)
+	rows, err := r.db.QueryContext(ctx, q,
+		opts.Faculty, opts.Credits, opts.Search, likeContains,
+		opts.Limit, opts.Offset,
+	)
 	if err != nil {
 		return nil, 0, err
 	}

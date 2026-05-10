@@ -23,6 +23,9 @@ type CreateReviewInput struct {
 	AcademicYear  int
 	Semester      int
 	Content       string
+	Category      string
+	Program       string
+	Professor     string
 	HoneypotValue string
 }
 
@@ -67,6 +70,9 @@ func (uc *CreateReviewUseCase) Execute(ctx context.Context, in CreateReviewInput
 		AcademicYear: in.AcademicYear,
 		Semester:     in.Semester,
 		Content:      in.Content,
+		Category:     in.Category,
+		Program:      in.Program,
+		Professor:    in.Professor,
 		IPHash:       in.Actor.SubmitterHash(),
 	}
 

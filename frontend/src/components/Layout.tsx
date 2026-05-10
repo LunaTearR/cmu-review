@@ -1,3 +1,5 @@
+import { faBookOpen } from '@fortawesome/free-solid-svg-icons'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Link, useLocation } from 'react-router-dom'
 
 interface Props {
@@ -21,28 +23,17 @@ export function Layout({ children }: Props) {
         top: 0,
         zIndex: 100,
       }}>
-        <div style={{
-          maxWidth: 900,
-          margin: '0 auto',
-          padding: '0 1rem',
-          height: 58,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}>
+        <div className="navbar-inner">
           {/* Brand */}
           <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-            <svg width="34" height="34" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M16 2L4 7V16C4 22.627 9.373 28.627 16 30C22.627 28.627 28 22.627 28 16V7L16 2Z"
-                fill="var(--cmu-gold)" />
-              <text x="16" y="20" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#2d0a54"
-                fontFamily="sans-serif">มช</text>
-            </svg>
+            <FontAwesomeIcon icon={faBookOpen} style={{ fontSize: '1.125rem' }} />
             <div>
-              <div style={{ color: '#fff', fontWeight: 800, fontSize: '1.05rem', lineHeight: 1.15, letterSpacing: '-0.01em' }}>
+              {/* 1.05 → 1.125rem: brand needs more presence in navbar */}
+              <div style={{ color: '#fff', fontWeight: 800, fontSize: '1.125rem', lineHeight: 1.2, letterSpacing: '-0.01em' }}>
                 CMU Review
               </div>
-              <div style={{ color: 'var(--cmu-gold-light)', fontSize: '0.65rem', lineHeight: 1, opacity: 0.9 }}>
+              {/* 0.65 → 0.8rem: 0.65rem (10.4px) fails WCAG readability */}
+              <div style={{ color: 'var(--cmu-gold-light)', fontSize: '0.8rem', lineHeight: 1.1, opacity: 0.9 }}>
                 มหาวิทยาลัยเชียงใหม่
               </div>
             </div>
@@ -52,13 +43,13 @@ export function Layout({ children }: Props) {
             <Link
               to="/courses/new"
               style={{
-                padding: '0.375rem 0.875rem',
+                padding: '0.4rem 1rem',
                 background: 'var(--cmu-gold)',
                 color: '#2d0a54',
                 borderRadius: 8,
                 textDecoration: 'none',
                 fontWeight: 800,
-                fontSize: '0.875rem',
+                fontSize: '0.9375rem',
                 boxShadow: '0 2px 8px rgba(201,162,39,0.3)',
               }}
             >
@@ -75,20 +66,20 @@ export function Layout({ children }: Props) {
         backdropFilter: 'blur(6px)',
         WebkitBackdropFilter: 'blur(6px)',
       }}>
-        <main style={{ maxWidth: 900, width: '100%', margin: '0 auto', padding: '1.5rem 1rem' }}>
+        <main className="page-container">
           {children}
         </main>
       </div>
 
-      {/* Glass footer */}
+      {/* Glass footer — 0.8rem, readable but subordinate */}
       <footer style={{
         background: 'rgba(13, 1, 32, 0.65)',
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
         borderTop: '1px solid rgba(201, 162, 39, 0.3)',
-        padding: '0.75rem 1rem',
+        padding: '0.875rem 1rem',
         textAlign: 'center',
-        fontSize: '0.75rem',
+        fontSize: '0.8rem',
         color: 'rgba(240, 216, 117, 0.75)',
       }}>
         CMU Review — รีวิววิชาเรียน มหาวิทยาลัยเชียงใหม่

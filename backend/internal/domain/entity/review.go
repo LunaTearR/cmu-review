@@ -11,6 +11,9 @@ type Review struct {
 	AcademicYear int    // Buddhist era year, e.g. 2567
 	Semester     int    // 1, 2, or 3
 	Content      string
+	Category     string // optional, e.g. "หมวดวิชาบังคับ" or "หมวดวิชาเลือก"
+	Program      string // optional, e.g. "ภาคปกติ" or "ภาคพิเศษ"
+	Professor    string // optional, e.g. "อาจารย์สมชาย"
 	IPHash       string // sha256(ip:ua) — never raw PII
 	IsHidden     bool
 	CreatedAt    time.Time

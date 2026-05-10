@@ -3,6 +3,16 @@
 }
 
 :root {
+  /* ── Type scale (minor-third × 1.125 ratio) ─────────────────────────── */
+  --t-xs:   0.8rem;      /* 12.8px — timestamps, fine metadata            */
+  --t-sm:   0.875rem;    /* 14px   — chips, badges, captions              */
+  --t-base: 0.9375rem;   /* 15px   — card body, secondary content         */
+  --t-body: 1rem;        /* 16px   — primary content, review text         */
+  --t-md:   1.0625rem;   /* 17px   — card titles, emphasized body         */
+  --t-lg:   1.1875rem;   /* 19px   — section headings (h2)                */
+  --t-xl:   1.5rem;      /* 24px   — page headings (h1)                   */
+  --t-2xl:  1.75rem;     /* 28px   — hero / course detail name            */
+
   --cmu-primary:       #4B1E78;
   --cmu-primary-dark:  #3A1660;
   --cmu-accent:        #7B3FA0;
@@ -16,7 +26,7 @@
   --cmu-text:          #1A0A2E;
   --cmu-text-sub:      #3d1a5e;
   --cmu-text-muted:    #6b4e91;
-  --cmu-star:          #F59E0B;
+  --cmu-star:          #f50b0b;
   --cmu-star-empty:    #c4a8d8;
   --cmu-error:         #dc2626;
   --cmu-success:       #15803d;
@@ -40,7 +50,7 @@ html, body {
   color: var(--cmu-text);
   font-family: 'Sarabun', 'Segoe UI', system-ui, sans-serif;
   font-size: 16px;
-  line-height: 1.5;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -75,3 +85,133 @@ input:focus, select:focus, textarea:focus {
   border: 1px solid var(--cmu-border);
   border-radius: 12px;
 }
+
+/* ── Container ──────────────────────────────────────────────────────────── */
+.page-container {
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 1.5rem 2rem;
+}
+
+@media (max-width: 1024px) { .page-container { padding: 1.25rem 1.5rem; } }
+@media (max-width: 640px)  { .page-container { padding: 1rem; } }
+
+/* ── Navbar ─────────────────────────────────────────────────────────────── */
+.navbar-inner {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  height: 58px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@media (max-width: 640px) {
+  .navbar-inner { padding: 0 1rem; height: 52px; }
+}
+
+/* ── Course grid (explicit breakpoints for exact column counts) ──────────── */
+.course-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+/* iPad Air portrait and small tablets (≥640px) → 2 cols */
+@media (min-width: 640px) {
+  .course-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Small desktop / iPad landscape (≥960px) → 3 cols */
+@media (min-width: 960px) {
+  .course-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* Medium desktop (≥1280px) → 4 cols */
+@media (min-width: 1280px) {
+  .course-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* Large desktop / wide MacBook (≥1520px) → 5 cols */
+@media (min-width: 1520px) {
+  .course-grid { grid-template-columns: repeat(5, 1fr); }
+}
+
+/* ── Review grid ────────────────────────────────────────────────────────── */
+.review-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+/* Tablet+ (≥768px) → 2 cols */
+@media (min-width: 768px) {
+  .review-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Large desktop (≥1280px) → 3 cols, reviews need width for text */
+@media (min-width: 1280px) {
+  .review-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* ── Course detail 2-column layout ──────────────────────────────────────── */
+.detail-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .detail-layout { grid-template-columns: 340px 1fr; }
+  .detail-sidebar { position: sticky; top: calc(58px + 1.5rem); }
+}
+
+/* ── Filter bar ─────────────────────────────────────────────────────────── */
+.filter-bar {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.875rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.filter-bar .filter-search {
+  flex: 1;
+  min-width: 180px;
+}
+
+/* On mobile, search goes full width, selects wrap below */
+@media (max-width: 640px) {
+  .filter-bar .filter-search { flex: 0 0 100%; }
+}
+
+/* ── Text overflow utilities ─────────────────────────────────────────────── */
+
+/* Single-line truncation. Must be on a block/flex child with min-width:0 */
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* Multi-line clamp — cross-browser via -webkit-box */
+.line-clamp-1,
+.line-clamp-2,
+.line-clamp-3,
+.line-clamp-4 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.line-clamp-1 { -webkit-line-clamp: 1; }
+.line-clamp-2 { -webkit-line-clamp: 2; }
+.line-clamp-3 { -webkit-line-clamp: 3; }
+.line-clamp-4 { -webkit-line-clamp: 4; }
