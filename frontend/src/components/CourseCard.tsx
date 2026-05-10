@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom'
 import type { Course } from '@/types/course'
+import { faHeart } from '@fortawesome/free-solid-svg-icons'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
 interface Props {
   course: Course
@@ -90,7 +92,7 @@ export function CourseCard({ course }: Props) {
             {course.review_count > 0 ? (
               <>
                 <span style={{ color: 'var(--cmu-star)', fontWeight: 800, fontSize: '0.9375rem', whiteSpace: 'nowrap' }}>
-                  ★ {course.avg_rating.toFixed(2)}
+                  <FontAwesomeIcon icon={faHeart} /> {course.avg_rating.toFixed(2)}
                 </span>
                 <span style={{ fontSize: '0.875rem', color: 'var(--cmu-text-muted)', whiteSpace: 'nowrap' }}>
                   {course.review_count} รีวิว

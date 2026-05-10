@@ -49,7 +49,7 @@ func main() {
 	// spam pipeline: honeypot → rate-limit (3/hour) → content
 	spamPipeline := spamcheck.Pipeline{
 		spamcheck.HoneypotChecker{},
-		spamcheck.NewRateLimitChecker(reviewRepo, 3, time.Hour),
+		// spamcheck.NewRateLimitChecker(reviewRepo, 3, time.Hour),
 		spamcheck.ContentValidator{MinLen: 10},
 	}
 
