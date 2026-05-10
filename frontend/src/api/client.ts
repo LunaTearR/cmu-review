@@ -1,4 +1,6 @@
-const BASE = '/api/v1'
+// In dev: VITE_API_BASE_URL is unset → Vite proxy handles /api/v1 → localhost:8080
+// In prod (Vercel): set to the full Railway backend URL e.g. https://xxx.railway.app/api/v1
+const BASE = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
