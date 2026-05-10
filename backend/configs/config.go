@@ -1,6 +1,8 @@
 package configs
 
 import (
+	"fmt"
+
 	"github.com/spf13/viper"
 )
 
@@ -30,13 +32,23 @@ type DatabaseConfig struct {
 }
 
 func Load() *Config {
-	// Read .env file; silently ignore if missing (Docker injects vars directly).
+	// Read .env file; silently ignore if missing (Docker/Railway inject vars directly).
 	viper.SetConfigFile(".env")
 	viper.SetConfigType("env")
 	_ = viper.ReadInConfig()
 
 	// AutomaticEnv makes real env vars take precedence over .env file values.
 	viper.AutomaticEnv()
+
+	// BindEnv guarantees these keys always resolve from the environment,
+	// even if they have no default and were never seen in a config file.
+	// Without BindEnv, AutomaticEnv only works reliably for keys with defaults.
+	for _, key := range []string{
+		"PORT", "DATABASE_URL", "DATABASE_PRIVATE_URL",
+		"PGHOST", "PGPORT", "PGUSER", "PGPASSWORD", "PGDATABASE",
+	} {
+		_ = viper.BindEnv(key)
+	}
 
 	viper.SetDefault("APP_PORT", "8080")
 	viper.SetDefault("APP_NAME", "cmu-review-backend")
@@ -65,10 +77,38 @@ func Load() *Config {
 			},
 		},
 		Database: DatabaseConfig{
-			Connection:      viper.GetString("DATABASE_URL"),
+			Connection:      resolveDBURL(),
 			MaxOpenConns:    viper.GetInt("DATABASE_MAX_OPEN_CONNS"),
 			MaxIdleConns:    viper.GetInt("DATABASE_MAX_IDLE_CONNS"),
 			ConnMaxLifetime: viper.GetInt("DATABASE_CONN_MAX_LIFETIME"),
 		},
 	}
+}
+
+// resolveDBURL returns the database connection URL.
+// Priority:
+//  1. DATABASE_PRIVATE_URL (Railway internal — lower latency)
+//  2. DATABASE_URL (Railway proxy / standard)
+//  3. PGHOST + PGPORT + PGUSER + PGPASSWORD + PGDATABASE (Railway individual plugin vars)
+func resolveDBURL() string {
+	if v := viper.GetString("DATABASE_PRIVATE_URL"); v != "" {
+		return v
+	}
+	if v := viper.GetString("DATABASE_URL"); v != "" {
+		return v
+	}
+
+	host := viper.GetString("PGHOST")
+	user := viper.GetString("PGUSER")
+	db := viper.GetString("PGDATABASE")
+	if host != "" && user != "" && db != "" {
+		port := viper.GetString("PGPORT")
+		if port == "" {
+			port = "5432"
+		}
+		return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=require",
+			user, viper.GetString("PGPASSWORD"), host, port, db)
+	}
+
+	return ""
 }
