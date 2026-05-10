@@ -13,7 +13,7 @@ domain  ←  usecase  ←  adapter  ←  infrastructure
 - **`internal/domain/`** — zero external imports. Only stdlib.
 - **`internal/usecase/`** — imports domain only. Never imports adapter or infrastructure.
 - **`internal/adapter/`** — imports domain + usecase/port. Never imports infrastructure directly.
-- **`internal/infrastructure/`** — imports everything; only wired in `cmd/main.go`.
+- **`cmd/main.go`** — wires all layers together. DB open, server start, migration run all live here directly.
 
 Violation: `domain` importing `gin`, `pgx`, or any adapter package = architecture breach.
 
@@ -34,6 +34,10 @@ type Review struct {
     AcademicYear int       // Buddhist era, e.g. 2567
     Semester     int       // 1, 2, or 3
     Content      string
+    Category     string    // optional, e.g. "หมวดวิชาบังคับ"
+    Program      string    // optional, e.g. "ภาคปกติ"
+    Professor    string    // optional lecturer name
+    ReviewerName string    // optional display nickname, "" = anonymous
     IPHash       string    // sha256(ip:ua) — never raw PII
     IsHidden     bool
     CreatedAt    time.Time
@@ -48,6 +52,9 @@ type Course struct {
     Credits     uint8
     FacultyID   int
     Description string
+    Faculty     Faculty
+    AvgRating   float64
+    ReviewCount int
 }
 
 // internal/domain/entity/faculty.go
@@ -92,6 +99,8 @@ Sentinel errors in `internal/domain/errors/errors.go`. Match with `errors.Is`.
 ```go
 var (
     ErrCourseNotFound  = errors.New("course not found")
+    ErrFacultyNotFound = errors.New("faculty not found")
+    ErrDuplicateCourse = errors.New("course already exists")
     ErrReviewNotFound  = errors.New("review not found")
     ErrDuplicateReview = errors.New("you have already reviewed this course for this term")
     ErrHoneypotTripped = errors.New("invalid submission")
@@ -122,8 +131,20 @@ type ListOpts struct {
 }
 
 // internal/domain/repository/course_repository.go
+type CourseListOpts struct {
+    Search  string
+    Faculty string
+    Credits int    // 0 = all
+    SortBy  string
+    Limit   int
+    Offset  int
+}
+
 type CourseRepository interface {
     Exists(ctx context.Context, id int) (bool, error)
+    Create(ctx context.Context, c *entity.Course) (*entity.Course, error)
+    List(ctx context.Context, opts CourseListOpts) ([]entity.Course, int, error)
+    GetByID(ctx context.Context, id int) (*entity.Course, error)
 }
 
 // internal/domain/repository/faculty_repository.go
@@ -135,22 +156,24 @@ type FacultyRepository interface {
 Rules:
 - Accept and return domain entities, never raw DB rows or pgx types.
 - `context.Context` as first arg always.
-- Map pgx errors to domain errors in `mapPgError` — callers never see driver-specific errors.
-- `ListByCourse` returns `([]entity.Review, int, error)` — the `int` is total count for pagination.
+- Map pgx errors to domain errors in `mapPgError` / `mapCourseError` — callers never see driver-specific errors.
+- `List` returns `([]entity.T, int, error)` — the `int` is total count for pagination.
 
 ### Implementation — in adapter/repository/postgres
 
 ```go
-type reviewPgRepo struct{ db *sql.DB }
+type coursePgRepo struct{ db *sql.DB }
 
-func NewReviewRepo(db *sql.DB) repository.ReviewRepository {
-    return &reviewPgRepo{db: db}
+func NewCourseRepo(db *sql.DB) repository.CourseRepository {
+    return &coursePgRepo{db: db}
 }
 ```
 
 - Use `database/sql` with `_ "github.com/jackc/pgx/v5/stdlib"`.
-- SQL strings as `const` inside functions. No string concatenation for queries.
-- `mapPgError` translates pgx unique-violation (23505) → `ErrDuplicateReview`, FK violation (23503) → `ErrCourseNotFound`.
+- SQL strings as `const` inside functions. Use string concatenation only for ORDER BY and WHERE clauses shared between count and list queries.
+- `mapPgError` translates pgx unique-violation (23505) / FK violation (23503) to domain errors.
+- LIKE/ILIKE searches use `escapeLike()` to prevent injection: `strings.ReplaceAll` on `\`, `%`, `_`.
+- Course search: `to_tsvector + plainto_tsquery` for full-text with ILIKE fallback using `%term%` (contains, not prefix).
 
 ---
 
@@ -201,6 +224,10 @@ type CreateReviewInput struct {
     AcademicYear  int
     Semester      int
     Content       string
+    Category      string
+    Program       string
+    Professor     string
+    ReviewerName  string
     HoneypotValue string
 }
 
@@ -239,7 +266,7 @@ Never log or persist raw IPs. Only the hash is stored in `reviews.ip_hash`.
 
 Each checker implements `port.SpamChecker`. Composed via `spamcheck.Pipeline` (slice of SpamChecker, short-circuits on first error).
 
-Current limit: 3 reviews per IP hash per hour.
+Rate limit (3 reviews/IP hash/hour) is **currently commented out** in `cmd/main.go` — re-enable after seeding test data.
 
 ---
 
@@ -279,16 +306,24 @@ func (h *ReviewHandler) Create(c *gin.Context) {
 
 ```go
 // internal/adapter/http/router.go
-func Register(r *gin.Engine, reviewHandler *handler.ReviewHandler, facultyHandler *handler.FacultyHandler) {
-    r.Use(middleware.CORS(), middleware.Recovery(), middleware.RequestID(), middleware.Actor())
+func Register(r *gin.Engine,
+    reviewHandler  *handler.ReviewHandler,
+    facultyHandler *handler.FacultyHandler,
+    courseHandler  *handler.CourseHandler,
+    cors configs.CorsConfig,
+) {
+    r.Use(middleware.CORS(cfg), middleware.Recovery(), middleware.RequestID(), middleware.Actor())
     r.GET("/healthz", ...)
 
     v1 := r.Group("/api/v1")
     v1.Use(middleware.RateLimit(200, time.Minute))
 
-    v1.GET("/faculties",             facultyHandler.List)
-    v1.GET("/courses/:id/reviews",   reviewHandler.List)
-    v1.POST("/courses/:id/reviews",  reviewHandler.Create)
+    v1.GET("/courses",              courseHandler.List)
+    v1.POST("/courses",             courseHandler.Create)
+    v1.GET("/courses/:id",          courseHandler.Get)
+    v1.GET("/courses/:id/reviews",  reviewHandler.List)
+    v1.POST("/courses/:id/reviews", reviewHandler.Create)
+    v1.GET("/faculties",            facultyHandler.List)
 }
 ```
 
@@ -309,11 +344,15 @@ DTOs hold json/binding tags; entities never do. Conversion functions live in the
 ```go
 // internal/adapter/http/dto/review_dto.go
 type CreateReviewRequest struct {
-    Rating       uint8  `json:"rating"        binding:"required,min=1,max=5"`
+    Rating       uint8  `json:"rating"         binding:"required,min=1,max=5"`
     Grade        string `json:"grade"`
-    AcademicYear int    `json:"academic_year" binding:"required,min=2560"`
-    Semester     int    `json:"semester"      binding:"required,min=1,max=3"`
-    Content      string `json:"content"       binding:"required,min=10,max=2000"`
+    AcademicYear int    `json:"academic_year"  binding:"required,min=2560"`
+    Semester     int    `json:"semester"       binding:"required,min=1,max=3"`
+    Content      string `json:"content"        binding:"required,min=10,max=2000"`
+    Category     string `json:"category"       binding:"max=255"`
+    Program      string `json:"program"        binding:"max=255"`
+    Professor    string `json:"professor"      binding:"max=255"`
+    ReviewerName string `json:"reviewer_name"  binding:"max=100"`
     Website      string `json:"website"`      // honeypot — must be empty
 }
 
@@ -324,15 +363,24 @@ type ReviewResponse struct {
     AcademicYear int    `json:"academic_year"`
     Semester     int    `json:"semester"`
     Content      string `json:"content"`
+    Category     string `json:"category"`
+    Program      string `json:"program"`
+    Professor    string `json:"professor"`
+    ReviewerName string `json:"reviewer_name"`
     CreatedAt    string `json:"created_at"`   // RFC3339
 }
 
-// internal/adapter/http/dto/faculty_dto.go
-type FacultyResponse struct {
-    ID     int    `json:"id"`
-    Code   string `json:"code"`
-    NameTH string `json:"name_th"`
-    NameEN string `json:"name_en"`
+// internal/adapter/http/dto/course_dto.go
+type CourseResponse struct {
+    ID          int          `json:"id"`
+    CourseCode  string       `json:"course_id"`
+    NameTH      string       `json:"name_th"`
+    NameEN      string       `json:"name_en"`
+    Credits     uint8        `json:"credits"`
+    Description string       `json:"description"`
+    Faculty     FacultyEmbed `json:"faculty"`
+    AvgRating   float64      `json:"avg_rating"`
+    ReviewCount int          `json:"review_count"`
 }
 ```
 
@@ -342,76 +390,118 @@ Faculty list endpoint returns `{"data": []FacultyResponse}`. The frontend `fetch
 
 ## 9. PostgreSQL Query Patterns
 
-### Full-text search on courses (target pattern)
+### Full-text search on courses
 
 ```sql
-CREATE INDEX idx_courses_fts ON courses USING GIN (
-    to_tsvector('simple', name_th || ' ' || name_en || ' ' || course_id)
-);
+-- course_pg_repo.go uses both approaches:
+-- 1. tsquery for full-word matching
+to_tsvector('simple', name_th || ' ' || name_en || ' ' || course_id)
+  @@ plainto_tsquery('simple', $search)
 
-SELECT * FROM courses
-WHERE to_tsvector('simple', name_th || ' ' || name_en || ' ' || course_id)
-      @@ plainto_tsquery('simple', $1)
-ORDER BY course_id LIMIT $2 OFFSET $3;
+-- 2. ILIKE fallback for substring matching (e.g. "111" in "204111")
+course_id ILIKE $likeContains ESCAPE '\'   -- $likeContains = '%' + escaped + '%'
 ```
 
-`'simple'` config works for both Thai and ASCII without stemming. Never use `ILIKE` for search.
+`escapeLike(s)` escapes `\`, `%`, `_` before interpolating into ILIKE patterns.  
+`'simple'` config works for both Thai and ASCII without stemming.
 
-### Aggregates via view (target pattern)
+### Aggregates inline
+
+`AvgRating` and `ReviewCount` are computed inline per query:
 
 ```sql
--- course_stats view: avg_rating + review_count per course (non-hidden only)
-SELECT c.*, cs.avg_rating, cs.review_count
-FROM courses c
-LEFT JOIN course_stats cs ON cs.course_id = c.id
-WHERE c.faculty_id = $1
-ORDER BY c.course_id LIMIT $2 OFFSET $3;
+COALESCE(AVG(rv.rating) FILTER (WHERE NOT rv.is_hidden), 0) AS avg_rating,
+COUNT(rv.id) FILTER (WHERE NOT rv.is_hidden) AS review_count
 ```
 
-Do not inline `AVG`/`COUNT` in every query — use the view.
+`GROUP BY c.id, f.id` required when joining reviews.
 
 ---
 
-## 10. React + TypeScript Patterns
+## 10. Config Pattern (Viper)
+
+`configs/config.go` uses Viper with explicit `BindEnv` for every key that lacks a default, because `AutomaticEnv` alone does not reliably resolve keys with no registered default.
+
+```go
+viper.BindEnv("DATABASE_URL")
+viper.BindEnv("DATABASE_PRIVATE_URL")
+viper.BindEnv("PGHOST")
+// ... etc
+```
+
+DB connection resolved by `resolveDBURL()`:
+1. `DATABASE_PRIVATE_URL` (Railway internal)
+2. `DATABASE_URL` (standard)
+3. Build from `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`
+
+---
+
+## 11. React + TypeScript Patterns
 
 ### State + fetch pattern in pages
 
 ```tsx
-const load = useCallback(async (p: number) => {
+const loadInitial = useCallback(async (f: typeof filters) => {
     setLoading(true)
     setError(null)
     try {
-        const res = await fetchCourses({ search, faculty: facultyFilter, page: p, limit: LIMIT })
+        const res = await fetchCourses({ search: f.search, faculty: f.faculty, page: 1, limit: LIMIT })
         setCourses(res.data)
         setTotal(res.total)
+        setOffset(res.data.length)
     } catch {
         setError('โหลดข้อมูลไม่สำเร็จ กรุณาลองใหม่')
     } finally {
         setLoading(false)
     }
-}, [search, facultyFilter])
+}, [])
 
-useEffect(() => { load(1) }, [load])
+useEffect(() => { loadInitial(filters) }, [filters, loadInitial])
 ```
 
 ### API client rules
 
 - All HTTP via `src/api/client.ts`. Never call `fetch` directly from components.
-- Base path is `/api/v1` — do not repeat in domain modules.
+- Base path: `VITE_API_BASE_URL` env var (baked at Vite build time) falling back to `/api/v1`.
 - Throws `ApiError` (not plain `Error`) on non-2xx.
 - When backend returns `{data: T[]}` envelope, unwrap in the API module (`.then(r => r.data)`) — callers always receive the concrete type.
 
+### SearchableSelect component
+
+`src/components/SearchableSelect.tsx` — reusable typeahead dropdown. Use for all filter dropdowns.
+
+```tsx
+interface SelectOption {
+  value: string | number
+  label: string
+  searchKeys?: string[]  // extra strings to match (e.g. English name, code)
+}
+```
+
+- Shows search input only when `options.length > 6`.
+- `searchKeys` enables cross-field matching: faculty options pass `[name_en, code]` so typing "sci" matches "คณะวิทยาศาสตร์" via code `SCI` or English name.
+- Keyboard: Arrow keys navigate, Enter selects, Escape closes.
+
+### ReviewModal
+
+`src/components/ReviewModal.tsx` — full review detail overlay.
+
+- `createPortal` to `document.body` — escapes sidebar stacking context.
+- `displayed` state lags the `review` prop by 220 ms so CSS exit animation plays before unmount.
+- ESC, backdrop click, and close button all dismiss. Body scroll locked while open.
+
 ### Styling
 
-Inline styles only — no CSS framework. Palette:
-- Brand purple: `#7c3aed`
-- Border: `#e5e7eb` / `#d1d5db`
-- Muted text: `#6b7280` / `#9ca3af`
-- Error red: `#dc2626`
+Inline styles only — no CSS framework. CSS custom properties defined in `src/index.css`:
+- `--cmu-primary`: brand purple
+- `--cmu-text`, `--cmu-text-muted`
+- `--cmu-bg`, `--cmu-bg-card`
+- `--cmu-border`, `--cmu-border-strong`
+- `--cmu-error`
 
 ---
 
-## 11. Extensibility Patterns
+## 12. Extensibility Patterns
 
 ### Adding authentication
 
@@ -419,15 +509,15 @@ Inline styles only — no CSS framework. Palette:
 2. Add JWT parsing in `internal/adapter/http/middleware/actor.go`. Populate an `authenticatedActor` that returns non-nil `UserID()`.
 3. `ActorFromContext(c)` always returns a non-nil `port.Actor` — use cases don't change.
 
-### Adding course list/get endpoints
-
-Handler stubs exist at `internal/adapter/http/handler/course_handler.go`. Pattern:
-1. Expand `CourseRepository` interface with `List` and `GetByID` methods.
-2. Implement in `adapter/repository/postgres/course_pg_repo.go`.
-3. Create `usecase/course/list_courses.go` and `get_course.go` with `Execute`.
-4. Implement handler methods and wire into `router.go` + `cmd/main.go`.
-
 ### Adding new domains
 
 Follow the layer sequence: entity → repository interface → usecase → postgres impl → handler + dto → wire in router + main.
 Never skip layers. A handler calling a repository directly violates the architecture.
+
+### Re-enabling rate limiter
+
+Uncomment this line in `cmd/main.go`:
+
+```go
+spamcheck.NewRateLimitChecker(reviewRepo, 3, time.Hour),
+```

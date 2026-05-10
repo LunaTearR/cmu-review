@@ -10,6 +10,8 @@ Anonymous course review platform for Chiang Mai University students.
 | Frontend | React 18, TypeScript, Vite, React Router |
 | Database | PostgreSQL 16 |
 | Runtime | Docker Compose (all services containerised) |
+| Frontend hosting | Vercel |
+| Backend hosting | Railway |
 
 ## Quick Start
 
@@ -33,12 +35,18 @@ App runs at `http://localhost:8000`. API at `http://localhost:8080`.
 Create `.env` at the project root:
 
 ```env
-POSTGRES_USER=cmu_user
-POSTGRES_PASSWORD=your_password
-POSTGRES_DB=cmu_review
-SERVER_PORT=8080
+POSTGRES_USER=<your_username>
+POSTGRES_PASSWORD=<your_password>
+POSTGRES_DB=<your_db_name>
+POSTGRES_PORT=<your_postgres_port>
+PGADMIN_EMAIL=<your_email>
+PGADMIN_PASSWORD=<your_password>
+PGADMIN_PORT=5050
+BACKEND_PORT=8080
 FRONTEND_PORT=8000
 ```
+
+For Railway deployment the backend reads `DATABASE_PRIVATE_URL` → `DATABASE_URL` → individual `PG*` vars as a fallback chain.
 
 ## Make Targets
 
@@ -52,10 +60,11 @@ make logs             # tail all logs (make logs svc=api for one service)
 make db-shell         # psql into postgres container
 
 # Database
-make migrate-up       # apply pending migrations (runs inside backend container)
-make migrate-down     # roll back 1 migration
+make migrate-up           # apply pending migrations (exec into backend container)
+make migrate-down         # roll back 1 migration
 make migrate-create name=add_foo   # create new migration pair
-make seed-faculties   # seed all 23 CMU faculties
+make dev-migrate-up       # same but for dev stack (go run, no compiled binary)
+make seed-faculties       # seed all 23 CMU faculties
 
 # Local dev (requires Go + Node on host)
 make api-run          # go run ./cmd/main.go
@@ -71,8 +80,17 @@ Base path: `/api/v1`
 |--------|------|-------------|
 | GET | `/healthz` | Health check |
 | GET | `/api/v1/faculties` | List all CMU faculties |
+| GET | `/api/v1/courses` | List / search courses |
+| POST | `/api/v1/courses` | Create a course |
+| GET | `/api/v1/courses/:id` | Get a single course |
 | GET | `/api/v1/courses/:id/reviews` | List reviews for a course |
 | POST | `/api/v1/courses/:id/reviews` | Submit a review |
+
+### GET /api/v1/courses
+
+Query params: `search`, `faculty` (code), `credits`, `sort` (`code` \| `rating` \| `reviews`), `page`, `limit`.
+
+`search` matches course code, Thai name, and English name (full-text + ILIKE fallback).
 
 ### POST /api/v1/courses/:id/reviews
 
@@ -83,18 +101,22 @@ Base path: `/api/v1`
   "academic_year": 2567,
   "semester": 1,
   "content": "เนื้อหาน่าสนใจมาก อาจารย์สอนดี",
+  "category": "หมวดวิชาบังคับ",
+  "program": "ภาคปกติ",
+  "professor": "อาจารย์สมชาย",
+  "reviewer_name": "น้องใหม่ปี 1",
   "website": ""
 }
 ```
 
-`website` is a honeypot field — must be empty.
+`website` is a honeypot field — must be empty. `category`, `program`, `professor`, `reviewer_name` are all optional.
 
 ### GET /api/v1/faculties
 
 ```json
 {
   "data": [
-    { "id": 1, "code": "HUM", "name_th": "คณะมนุษยศาสตร์", "name_en": "Faculty of Humanities" },
+    { "id": 1, "code": "SCI", "name_th": "คณะวิทยาศาสตร์", "name_en": "Faculty of Science" },
     ...
   ]
 }
@@ -108,21 +130,23 @@ Base path: `/api/v1`
 │   ├── cmd/
 │   │   ├── main.go          # server entry point
 │   │   ├── migrate/         # standalone migrate binary (up/down)
-│   │   └── seed/            # standalone seed binary
+│   │   └── seed/            # standalone seed binary (faculties)
+│   ├── configs/             # viper config — reads env vars
 │   ├── internal/
 │   │   ├── domain/          # entities, value objects, repository interfaces, errors
 │   │   ├── usecase/         # business logic (one file per use case)
-│   │   ├── adapter/         # http handlers, postgres repos, spam checkers
-│   │   └── infrastructure/  # db pool, http server, logger
-│   ├── migrations/          # SQL migration files (golang-migrate)
-│   └── scripts/             # seed functions
+│   │   └── adapter/         # http handlers, postgres repos, spam checkers
+│   ├── migrations/          # SQL migration files (golang-migrate, 000001–000006)
+│   └── scripts/             # SeedFaculties function
 ├── frontend/
 │   └── src/
-│       ├── api/             # fetch wrappers (client.ts, courses.ts, reviews.ts)
+│       ├── api/             # fetch wrappers: client.ts, courses.ts, reviews.ts
 │       ├── types/           # TypeScript interfaces mirroring backend DTOs
 │       ├── pages/           # CourseListPage, CourseDetailPage
-│       └── components/      # CourseCard, ReviewCard, ReviewForm, Rating
+│       └── components/      # CourseCard, ReviewCard, ReviewForm, ReviewModal,
+│                            #   Rating, SearchableSelect, Layout
 ├── docker-compose.yml
+├── docker-compose.dev.yml
 ├── Makefile
 └── .env                     # not committed — create from .env.example
 ```
@@ -142,7 +166,7 @@ Domain layer has zero external imports. Use cases depend on port interfaces, not
 All reviews are anonymous. Submissions are protected by:
 
 1. **Honeypot** — hidden `website` field must be empty
-2. **Rate limit** — max 3 reviews per IP hash per hour
+2. **Rate limit** — max 3 reviews per IP hash per hour *(currently commented out)*
 3. **Content validation** — minimum 10 characters
 
 Submitter identity stored as `sha256(ip:ua)` — raw IPs are never logged or persisted.
