@@ -23,20 +23,27 @@ func NewReviewRepo(db *sql.DB) repository.ReviewRepository {
 
 func (r *reviewPgRepo) Create(ctx context.Context, rv *entity.Review) (*entity.Review, error) {
 	const q = `
-		INSERT INTO reviews (course_id, user_id, rating, grade, academic_year, semester, content, ip_hash)
-		VALUES ($1, $2, $3, NULLIF($4, ''), $5, $6, $7, $8)
-		RETURNING id, course_id, user_id, rating, COALESCE(grade, ''), academic_year, semester, content, ip_hash, is_hidden, created_at`
+		INSERT INTO reviews
+		  (course_id, user_id, rating, grade, academic_year, semester, content,
+		   category, program, professor, reviewer_name, ip_hash)
+		VALUES ($1, $2, $3, NULLIF($4, ''), $5, $6, $7, $8, $9, $10, $11, $12)
+		RETURNING id, course_id, user_id, rating, COALESCE(grade, ''),
+		          academic_year, semester, content,
+		          category, program, professor, reviewer_name,
+		          ip_hash, is_hidden, created_at`
 
 	out := &entity.Review{}
 	var userID sql.NullInt64
 
 	err := r.db.QueryRowContext(ctx, q,
 		rv.CourseID, rv.UserID, rv.Rating, rv.Grade,
-		rv.AcademicYear, rv.Semester, rv.Content, rv.IPHash,
+		rv.AcademicYear, rv.Semester, rv.Content,
+		rv.Category, rv.Program, rv.Professor, rv.ReviewerName, rv.IPHash,
 	).Scan(
 		&out.ID, &out.CourseID, &userID, &out.Rating,
 		&out.Grade, &out.AcademicYear, &out.Semester,
-		&out.Content, &out.IPHash, &out.IsHidden, &out.CreatedAt,
+		&out.Content, &out.Category, &out.Program, &out.Professor, &out.ReviewerName,
+		&out.IPHash, &out.IsHidden, &out.CreatedAt,
 	)
 	if err != nil {
 		return nil, mapPgError(err)
@@ -56,7 +63,10 @@ func (r *reviewPgRepo) ListByCourse(ctx context.Context, courseID int, opts repo
 	}
 
 	const q = `
-		SELECT id, course_id, user_id, rating, COALESCE(grade, ''), academic_year, semester, content, ip_hash, is_hidden, created_at
+		SELECT id, course_id, user_id, rating, COALESCE(grade, ''),
+		       academic_year, semester, content,
+		       category, program, professor, reviewer_name,
+		       ip_hash, is_hidden, created_at
 		FROM reviews
 		WHERE course_id = $1 AND is_hidden = FALSE
 		ORDER BY created_at DESC
@@ -75,7 +85,8 @@ func (r *reviewPgRepo) ListByCourse(ctx context.Context, courseID int, opts repo
 		if err := rows.Scan(
 			&rv.ID, &rv.CourseID, &userID, &rv.Rating,
 			&rv.Grade, &rv.AcademicYear, &rv.Semester,
-			&rv.Content, &rv.IPHash, &rv.IsHidden, &rv.CreatedAt,
+			&rv.Content, &rv.Category, &rv.Program, &rv.Professor, &rv.ReviewerName,
+			&rv.IPHash, &rv.IsHidden, &rv.CreatedAt,
 		); err != nil {
 			return nil, 0, err
 		}

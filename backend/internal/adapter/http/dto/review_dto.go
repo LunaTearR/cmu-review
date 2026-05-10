@@ -7,14 +7,15 @@ import (
 )
 
 type CreateReviewRequest struct {
-	Rating       uint8  `json:"rating"        binding:"required,min=1,max=5"`
+	Rating       uint8  `json:"rating"         binding:"required,min=1,max=5"`
 	Grade        string `json:"grade"`
-	AcademicYear int    `json:"academic_year" binding:"required,min=2560"`
-	Semester     int    `json:"semester"      binding:"required,min=1,max=3"`
-	Content      string `json:"content"       binding:"required,min=10,max=2000"`
-	Category     string `json:"category"  binding:"max=255"`
-	Program      string `json:"program"     binding:"max=255"`
-	Professor    string `json:"professor"   binding:"max=255"`
+	AcademicYear int    `json:"academic_year"  binding:"required,min=2560"`
+	Semester     int    `json:"semester"       binding:"required,min=1,max=3"`
+	Content      string `json:"content"        binding:"required,min=10,max=2000"`
+	Category     string `json:"category"       binding:"max=255"`
+	Program      string `json:"program"        binding:"max=255"`
+	Professor    string `json:"professor"      binding:"max=255"`
+	ReviewerName string `json:"reviewer_name"  binding:"max=100"`
 	Website      string `json:"website"` // honeypot — must be empty
 }
 
@@ -28,6 +29,7 @@ type ReviewResponse struct {
 	Category     string `json:"category"`
 	Program      string `json:"program"`
 	Professor    string `json:"professor"`
+	ReviewerName string `json:"reviewer_name"`
 	CreatedAt    string `json:"created_at"`
 }
 
@@ -49,6 +51,7 @@ func ToReviewResponse(r *entity.Review) ReviewResponse {
 		Category:     r.Category,
 		Program:      r.Program,
 		Professor:    r.Professor,
+		ReviewerName: r.ReviewerName,
 		CreatedAt:    r.CreatedAt.UTC().Format(time.RFC3339),
 	}
 }

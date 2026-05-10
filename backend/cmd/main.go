@@ -11,7 +11,6 @@ import (
 	migratepostgres "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/joho/godotenv"
 
 	"cmu-review-backend/configs"
 	adapthttp "cmu-review-backend/internal/adapter/http"
@@ -24,18 +23,17 @@ import (
 )
 
 func main() {
-	_ = godotenv.Load()
 	cfg := configs.Load()
 
-	db, err := sql.Open("pgx", cfg.DSN())
+	db, err := sql.Open("pgx", cfg.Database.Connection)
 	if err != nil {
 		log.Fatalf("open db: %v", err)
 	}
 	defer db.Close()
 
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(10)
-	db.SetConnMaxLifetime(5 * time.Minute)
+	db.SetMaxOpenConns(cfg.Database.MaxOpenConns)
+	db.SetMaxIdleConns(cfg.Database.MaxIdleConns)
+	db.SetConnMaxLifetime(time.Duration(cfg.Database.ConnMaxLifetime) * time.Second)
 
 	if err := db.Ping(); err != nil {
 		log.Fatalf("ping db: %v", err)
@@ -71,9 +69,9 @@ func main() {
 	// router
 	r := gin.New()
 	r.Use(gin.Logger())
-	adapthttp.Register(r, reviewHandler, facultyHandler, courseHandler)
+	adapthttp.Register(r, reviewHandler, facultyHandler, courseHandler, cfg.App.Cors)
 
-	addr := fmt.Sprintf(":%s", cfg.ServerPort)
+	addr := fmt.Sprintf(":%s", cfg.App.Port)
 	log.Printf("server listening on %s", addr)
 	if err := r.Run(addr); err != nil {
 		log.Fatalf("server: %v", err)

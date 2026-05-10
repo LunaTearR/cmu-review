@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"cmu-review-backend/configs"
 	"cmu-review-backend/internal/adapter/http/handler"
 	"cmu-review-backend/internal/adapter/http/middleware"
 )
@@ -15,8 +16,13 @@ func Register(
 	reviewHandler *handler.ReviewHandler,
 	facultyHandler *handler.FacultyHandler,
 	courseHandler *handler.CourseHandler,
+	cors configs.CorsConfig,
 ) {
-	r.Use(middleware.CORS())
+	r.Use(middleware.CORS(middleware.CorsConfig{
+		AllowOrigins: cors.AllowOrigins,
+		AllowMethods: cors.AllowMethods,
+		AllowHeaders: cors.AllowHeaders,
+	}))
 	r.Use(middleware.Recovery())
 	r.Use(middleware.RequestID())
 	r.Use(middleware.Actor())

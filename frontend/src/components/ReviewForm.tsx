@@ -34,6 +34,7 @@ export function ReviewForm({ courseId: _courseId, onSubmit }: Props) {
   const [categoryCustom, setCategoryCustom] = useState("");
   const category = categoryPreset === "อื่นๆ" ? categoryCustom : categoryPreset;
   const [professor, setProfessor] = useState("");
+  const [reviewerName, setReviewerName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -62,6 +63,7 @@ export function ReviewForm({ courseId: _courseId, onSubmit }: Props) {
         program,
         category,
         professor,
+        reviewer_name: reviewerName.trim() || undefined,
       });
       setSuccess(true);
       setRating(0);
@@ -216,6 +218,16 @@ export function ReviewForm({ courseId: _courseId, onSubmit }: Props) {
             value={professor}
             onChange={(e) => setProfessor(e.target.value)}
             placeholder="ชื่ออาจารย์ผู้สอน (ถ้ามากกว่าหนึ่งคน ให้คั่นด้วย ,)"
+            style={inputStyle}
+          />
+        </div>
+        <div>
+          <label style={field}>ชื่อที่แสดง (ไม่บังคับ)</label>
+          <input
+            value={reviewerName}
+            onChange={(e) => setReviewerName(e.target.value)}
+            maxLength={100}
+            placeholder="เช่น นักศึกษาปี 2, นิรนาม, ..."
             style={inputStyle}
           />
         </div>

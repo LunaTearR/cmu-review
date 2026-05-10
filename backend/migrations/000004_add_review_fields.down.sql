@@ -1,0 +1,5 @@
+ALTER TABLE reviews
+  DROP COLUMN IF EXISTS category,
+  DROP COLUMN IF EXISTS program,
+  DROP COLUMN IF EXISTS professor,
+  DROP COLUMN IF EXISTS reviewer_name;

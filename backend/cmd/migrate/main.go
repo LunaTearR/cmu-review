@@ -10,16 +10,14 @@ import (
 	migratepostgres "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/joho/godotenv"
 
 	"cmu-review-backend/configs"
 )
 
 func main() {
-	_ = godotenv.Load()
 	cfg := configs.Load()
 
-	db, err := sql.Open("pgx", cfg.DSN())
+	db, err := sql.Open("pgx", cfg.Database.Connection)
 	if err != nil {
 		log.Fatalf("open db: %v", err)
 	}

@@ -8,6 +8,7 @@ export interface Review {
   category?: string
   program?: string
   professor?: string
+  reviewer_name?: string
   created_at: string
 }
 
@@ -27,4 +28,5 @@ export interface CreateReviewPayload {
   category?: string
   program?: string
   professor?: string
+  reviewer_name?: string
 }

@@ -3,6 +3,7 @@ import { Rating } from './Rating'
 
 interface Props {
   review: Review
+  onClick?: () => void
 }
 
 const SEMESTER_LABEL: Record<number, string> = { 1: 'เทอมแรก', 2: 'เทอมสอง', 3: 'ซัมเมอร์' }
@@ -16,32 +17,51 @@ const chip = (bg: string, color: string): React.CSSProperties => ({
   borderRadius: 5,
   fontSize: '0.8rem',
   fontWeight: 600,
-  // whiteSpace nowrap + maxWidth: chip stays single-line but never wider than parent
   whiteSpace: 'nowrap',
   overflow: 'hidden',
   textOverflow: 'ellipsis',
   maxWidth: '100%',
 })
 
-export function ReviewCard({ review }: Props) {
+export function ReviewCard({ review, onClick }: Props) {
   const date = new Date(review.created_at).toLocaleDateString('th-TH', {
     year: 'numeric', month: 'short', day: 'numeric',
   })
 
+  const interactive = !!onClick
+
   return (
-    <div style={{
-      background: '#fff',
-      border: '1px solid rgba(180,140,220,0.25)',
-      borderRadius: 12,
-      padding: '1rem 1.125rem',
-      boxShadow: '0 1px 6px rgba(0,0,0,0.07)',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '0.5rem',
-      minWidth: 0, // prevents overflow in grid cell
-    }}>
-      {/* Row 1: left group (rating + grade) / right group (semester)
-          Separated into two groups to prevent semester from being squeezed by flex:auto */}
+    <div
+      role={interactive ? 'button' : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={interactive ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.() } } : undefined}
+      onMouseEnter={interactive ? (e) => {
+        e.currentTarget.style.boxShadow = '0 6px 20px rgba(75,30,120,0.14)'
+        e.currentTarget.style.borderColor = 'rgba(123,63,160,0.40)'
+        e.currentTarget.style.transform = 'translateY(-2px)'
+      } : undefined}
+      onMouseLeave={interactive ? (e) => {
+        e.currentTarget.style.boxShadow = '0 1px 6px rgba(0,0,0,0.07)'
+        e.currentTarget.style.borderColor = 'rgba(180,140,220,0.25)'
+        e.currentTarget.style.transform = 'translateY(0)'
+      } : undefined}
+      style={{
+        background: '#fff',
+        border: '1px solid rgba(180,140,220,0.25)',
+        borderRadius: 12,
+        padding: '1rem 1.125rem',
+        boxShadow: '0 1px 6px rgba(0,0,0,0.07)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0.5rem',
+        minWidth: 0,
+        cursor: interactive ? 'pointer' : 'default',
+        transition: 'box-shadow 0.18s, border-color 0.18s, transform 0.18s',
+        outline: 'none',
+      }}
+    >
+      {/* Row 1: left group (rating + grade) / right group (semester) */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', minWidth: 0 }}>
           <Rating value={review.rating} />
@@ -54,8 +74,7 @@ export function ReviewCard({ review }: Props) {
         </span>
       </div>
 
-      {/* Row 2: meta chips — flex-wrap handles multiple chips gracefully.
-          Professor chip limited to max 22ch before truncating. */}
+      {/* Row 2: meta chips */}
       {(review.professor || review.program || review.category) && (
         <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', minWidth: 0 }}>
           {review.professor && (
@@ -76,8 +95,7 @@ export function ReviewCard({ review }: Props) {
         </div>
       )}
 
-      {/* Row 3: review content — 4-line clamp.
-          word-break: break-word handles long unbroken English strings. */}
+      {/* Row 3: review content — 4-line clamp */}
       <p
         className="line-clamp-4"
         style={{ margin: 0, lineHeight: 1.7, color: 'var(--cmu-text)', fontSize: '1rem' }}
@@ -85,7 +103,7 @@ export function ReviewCard({ review }: Props) {
         {review.content}
       </p>
 
-      {/* Row 4: date — always single line */}
+      {/* Row 4: date */}
       <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--cmu-text-muted)', whiteSpace: 'nowrap' }}>{date}</p>
     </div>
   )

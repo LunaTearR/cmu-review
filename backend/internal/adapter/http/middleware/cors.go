@@ -1,14 +1,22 @@
 package middleware
 
 import (
+	"strings"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
-func CORS() gin.HandlerFunc {
+type CorsConfig struct {
+	AllowOrigins string
+	AllowMethods string
+	AllowHeaders string
+}
+
+func CORS(cfg CorsConfig) gin.HandlerFunc {
 	return cors.New(cors.Config{
-		AllowOrigins: []string{"http://localhost", "http://localhost:8000", "http://localhost:5173", "http://localhost:3000"},
-		AllowMethods: []string{"GET", "POST","PUT", "DELETE", "OPTIONS"},
-		AllowHeaders: []string{"Accept", "Content-Type", "X-Request-ID"},
+		AllowOrigins: strings.Split(cfg.AllowOrigins, ","),
+		AllowMethods: strings.Split(cfg.AllowMethods, ","),
+		AllowHeaders: strings.Split(cfg.AllowHeaders, ","),
 	})
 }

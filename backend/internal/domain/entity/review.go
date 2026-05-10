@@ -14,6 +14,7 @@ type Review struct {
 	Category     string // optional, e.g. "หมวดวิชาบังคับ" or "หมวดวิชาเลือก"
 	Program      string // optional, e.g. "ภาคปกติ" or "ภาคพิเศษ"
 	Professor    string // optional, e.g. "อาจารย์สมชาย"
+	ReviewerName string // optional display nickname, "" = anonymous
 	IPHash       string // sha256(ip:ua) — never raw PII
 	IsHidden     bool
 	CreatedAt    time.Time

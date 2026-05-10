@@ -6,6 +6,7 @@ import { fetchCourse } from '@/api/courses'
 import { fetchReviews, createReview } from '@/api/reviews'
 import { Rating } from '@/components/Rating'
 import { ReviewCard } from '@/components/ReviewCard'
+import { ReviewModal } from '@/components/ReviewModal'
 import { ReviewForm } from '@/components/ReviewForm'
 import type { CreateReviewPayload } from '@/types/review'
 
@@ -22,6 +23,7 @@ export function CourseDetailPage() {
   const [courseLoading, setCourseLoading] = useState(true)
   const [reviewsLoading, setReviewsLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [selectedReview, setSelectedReview] = useState<Review | null>(null)
 
   useEffect(() => {
     fetchCourse(courseId)
@@ -173,7 +175,9 @@ export function CourseDetailPage() {
           ) : (
             <>
               <div className="review-grid">
-                {reviews.map((rv) => <ReviewCard key={rv.id} review={rv} />)}
+                {reviews.map((rv) => (
+                  <ReviewCard key={rv.id} review={rv} onClick={() => setSelectedReview(rv)} />
+                ))}
               </div>
               {totalPages > 1 && (
                 <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem', justifyContent: 'center', alignItems: 'center' }}>
@@ -192,6 +196,13 @@ export function CourseDetailPage() {
           )}
         </div>
       </div>
+
+      <ReviewModal
+        review={selectedReview}
+        courseCode={course.course_id}
+        courseName={course.name_th}
+        onClose={() => setSelectedReview(null)}
+      />
     </div>
   )
 }

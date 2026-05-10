@@ -46,6 +46,10 @@ func (h *ReviewHandler) Create(c *gin.Context) {
 		AcademicYear:  body.AcademicYear,
 		Semester:      body.Semester,
 		Content:       body.Content,
+		Category:      body.Category,
+		Program:       body.Program,
+		Professor:     body.Professor,
+		ReviewerName:  body.ReviewerName,
 		HoneypotValue: body.Website,
 	})
 	if err != nil {

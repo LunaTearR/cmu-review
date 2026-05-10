@@ -65,11 +65,17 @@ fe-build: ## Build frontend for production
 
 # ── Migrations ────────────────────────────────────────────────────────────────
 
-migrate-up: ## Apply all pending migrations
+migrate-up: ## Apply all pending migrations (prod stack)
 	docker compose exec backend /app/migrate up
 
-migrate-down: ## Roll back last migration
+migrate-down: ## Roll back last migration (prod stack)
 	docker compose exec backend /app/migrate down
+
+dev-migrate-up: ## Apply all pending migrations (dev stack)
+	docker compose -f docker-compose.dev.yml exec backend go run ./cmd/migrate/main.go up
+
+dev-migrate-down: ## Roll back last migration (dev stack)
+	docker compose -f docker-compose.dev.yml exec backend go run ./cmd/migrate/main.go down
 
 migrate-create: ## Create migration pair; usage: make migrate-create name=add_something
 	cd $(BACKEND_DIR) && go run github.com/golang-migrate/migrate/v4/cmd/migrate create -ext sql -dir migrations -seq $(name)
