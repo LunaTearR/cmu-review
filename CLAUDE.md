@@ -35,6 +35,8 @@ make fe-install / fe-dev / fe-build
 make migrate-up                    # docker compose exec backend /app/migrate up
 make migrate-down                  # docker compose exec backend /app/migrate down (1 step)
 make migrate-create name=add_foo   # generates up/down SQL pair (runs locally)
+make dev-migrate-up                # same as migrate-up but for dev stack (go run, no compiled binary)
+make dev-migrate-down              # same for down
 
 # Seed
 make seed-faculties                # docker compose exec backend /app/seed
@@ -55,7 +57,7 @@ backend/
     main.go                         # entry point: wires all layers, starts gin
     migrate/main.go                 # standalone binary: runs migrate up/down
     seed/main.go                    # standalone binary: seeds faculties
-  configs/                          # viper config (reads env vars)
+  configs/                          # viper config (reads env vars with BindEnv)
   internal/
     domain/                         # pure Go, zero external imports
       entity/                       # Course, Faculty, Review structs
@@ -73,12 +75,7 @@ backend/
         router.go                   # registers all routes on *gin.Engine
       repository/postgres/          # implements domain/repository interfaces via pgx
       spamcheck/                    # honeypot, rate_limiter, content_validator adapters
-    infrastructure/
-      database/                     # pgx pool setup
-      server/                       # http.Server wrapper
-      config/                       # infrastructure-level config struct
-      logger/                       # structured logger setup
-  migrations/                       # golang-migrate SQL files (sequential: 000001, 000002…)
+  migrations/                       # golang-migrate SQL files (sequential: 000001–000006)
   scripts/                          # SeedFaculties function (called by cmd/seed)
 ```
 
@@ -87,11 +84,12 @@ backend/
 ```
 GET  /healthz
 GET  /api/v1/faculties
+GET  /api/v1/courses                  ?search=&faculty=&credits=&sort=&page=&limit=
+POST /api/v1/courses
+GET  /api/v1/courses/:id
 GET  /api/v1/courses/:id/reviews
 POST /api/v1/courses/:id/reviews
 ```
-
-Course list/get endpoints exist as stubs (handler files present, no implementation yet).
 
 ### Key design decisions
 
@@ -101,13 +99,27 @@ Course list/get endpoints exist as stubs (handler files present, no implementati
 
 **ReviewStatus**: `approved | pending | rejected | flagged`. Value object enum in `domain/valueobject/review_status.go`.
 
-**Course search** (not yet implemented in repo): GIN index on `to_tsvector('simple', name_th || name_en || course_id)`. Use `tsquery`, not `ILIKE`.
+**Course search**: GIN index on `to_tsvector('simple', name_th || name_en || course_id)`. Repo uses `tsquery` with ILIKE fallback for substring matching. Search `$term` becomes `%$term%` for ILIKE — contains, not prefix.
 
-**course_stats view** (not yet created): Will materialise `avg_rating` + `review_count` per course from non-hidden reviews. Query view rather than inline aggregates.
+**Ratings aggregation**: `AVG`/`COUNT` computed inline per query with `FILTER (WHERE NOT rv.is_hidden)`. No separate view yet.
 
 **Dedup constraint**: Unique index on `(course_id, ip_hash, academic_year, semester)` enforced at DB level.
 
 **Actor middleware**: Computes `sha256(ip:ua)` and stores as `anonymousActor` in gin context. `ActorFromContext(c)` always returns a non-nil `port.Actor`.
+
+**Config**: Viper with `BindEnv` for every critical key (not just `AutomaticEnv`) so Railway / Docker env vars are reliably resolved. DB connection uses `resolveDBURL()`: tries `DATABASE_PRIVATE_URL` → `DATABASE_URL` → builds from `PG*` vars.
+
+**CORS**: `APP_CORS_ALLOW_ORIGINS` is a comma-separated string split at runtime. No trailing slash on origins.
+
+**Rate limiter**: Currently commented out in `cmd/main.go` spam pipeline (`spamcheck.NewRateLimitChecker`). Re-enable after seeding reviews.
+
+### Review fields
+
+Beyond the core rating/content, reviews carry optional metadata added in migration 000004:
+- `category` — e.g. "หมวดวิชาบังคับ"
+- `program` — e.g. "ภาคปกติ"
+- `professor` — lecturer name
+- `reviewer_name` — optional display nickname (stored, never verified)
 
 ### Adding a new use case
 
@@ -121,7 +133,15 @@ Course list/get endpoints exist as stubs (handler files present, no implementati
 
 PostgreSQL 16. Schema managed by `golang-migrate`. The `server` binary auto-runs `migrate up` on startup. The `migrate` binary (`/app/migrate up|down`) handles manual runs via `make migrate-up / migrate-down`.
 
-Tables: `faculties → courses → reviews`. Config via env vars: `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `SERVER_PORT`.
+Migrations (sequential):
+- `000001` — faculties table
+- `000002` — courses table (faculty FK)
+- `000003` — reviews table (course FK, dedup unique index)
+- `000004` — adds `category`, `program`, `professor`, `reviewer_name` to reviews
+- `000005` — adds majors table + `major_id` FK on courses
+- `000006` — drops `major_id`, drops majors table (major removed from schema)
+
+Tables: `faculties → courses → reviews`. Config via env vars — see `configs/config.go`.
 
 Docker env (from `.env`): `POSTGRES_USER=cmu_user`, `POSTGRES_PASSWORD=cmu_review_password`, `POSTGRES_DB=cmu_review`.
 
@@ -143,15 +163,41 @@ React 18 + TypeScript + Vite. No state management library.
 
 ```
 frontend/src/
-  api/client.ts         # fetch wrapper — throws ApiError on non-2xx
-  api/courses.ts        # courses + faculties API calls
-  api/reviews.ts        # reviews API calls
-  types/                # TypeScript interfaces mirroring backend DTOs
-  pages/                # route-level components (CourseListPage, CourseDetailPage)
-  components/           # shared UI (CourseCard, ReviewCard, ReviewForm, Rating)
+  api/
+    client.ts         # fetch wrapper — throws ApiError on non-2xx
+    courses.ts        # courses + faculties API calls
+    reviews.ts        # reviews API calls
+  types/
+    course.ts         # Course, CourseListResponse, CreateCoursePayload
+    faculty.ts        # Faculty
+    review.ts         # Review, CreateReviewPayload
+  pages/
+    CourseListPage.tsx    # search + filter + infinite scroll
+    CourseDetailPage.tsx  # course info + reviews list + submit form
+  components/
+    CourseCard.tsx        # card in grid, click → /courses/:id
+    ReviewCard.tsx        # review row — click opens ReviewModal
+    ReviewModal.tsx       # full review detail in portal modal
+    ReviewForm.tsx        # submit review form
+    Rating.tsx            # star display (read-only)
+    SearchableSelect.tsx  # typeahead dropdown — all filter dropdowns use this
+    Layout.tsx            # page shell with sidebar
   App.tsx               # React Router routes: / and /courses/:id
 ```
 
-In dev, Vite proxies `/api/v1` to the backend. In production, nginx forwards it. The `api/client.ts` base path `/api/v1` must not be changed without updating `nginx.conf`.
+In dev, Vite proxies `/api/v1` to the backend (configured in `vite.config.ts`). In production, nginx forwards it. The `api/client.ts` base path (`VITE_API_BASE_URL` env var or `/api/v1`) must not be changed without updating `nginx.conf`.
 
 `fetchFaculties` returns `Promise<Faculty[]>` by unwrapping the backend `{data: [...]}` envelope internally — callers receive the array directly.
+
+### SearchableSelect
+
+All filter dropdowns in `CourseListPage` use `SearchableSelect` instead of `<select>`. The component shows a search input when the option list is longer than 6 items. Options accept a `searchKeys` array for matching on secondary strings (e.g. faculty English name + code) — the `label` is always what is displayed.
+
+### ReviewModal
+
+`ReviewModal` uses `createPortal` to render into `document.body`, escaping any stacking context from the sidebar layout. It supports ESC to close, backdrop click, body scroll lock, and a spring-eased open / ease-out close animation.
+
+### Deployment
+
+- Frontend on **Vercel** — `VITE_API_BASE_URL` env var must be set to the Railway backend URL.
+- Backend + PostgreSQL on **Railway** — `DATABASE_URL` (or `DATABASE_PRIVATE_URL`) injected via Railway's Postgres plugin reference `${{Postgres.DATABASE_URL}}`.
