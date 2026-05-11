@@ -9,6 +9,12 @@ import (
 type Config struct {
 	App      AppConfig
 	Database DatabaseConfig
+	Redis    RedisConfig
+}
+
+type RedisConfig struct {
+	URL           string
+	FacultyTTLSec int
 }
 
 type AppConfig struct {
@@ -46,6 +52,7 @@ func Load() *Config {
 	for _, key := range []string{
 		"PORT", "DATABASE_URL", "DATABASE_PRIVATE_URL",
 		"PGHOST", "PGPORT", "PGUSER", "PGPASSWORD", "PGDATABASE",
+		"REDIS_URL",
 	} {
 		_ = viper.BindEnv(key)
 	}
@@ -59,6 +66,7 @@ func Load() *Config {
 	viper.SetDefault("DATABASE_MAX_OPEN_CONNS", 25)
 	viper.SetDefault("DATABASE_MAX_IDLE_CONNS", 10)
 	viper.SetDefault("DATABASE_CONN_MAX_LIFETIME", 300)
+	viper.SetDefault("REDIS_FACULTY_TTL_SECONDS", 3600)
 
 	port := viper.GetString("PORT")
 	if port == "" {
@@ -81,6 +89,10 @@ func Load() *Config {
 			MaxOpenConns:    viper.GetInt("DATABASE_MAX_OPEN_CONNS"),
 			MaxIdleConns:    viper.GetInt("DATABASE_MAX_IDLE_CONNS"),
 			ConnMaxLifetime: viper.GetInt("DATABASE_CONN_MAX_LIFETIME"),
+		},
+		Redis: RedisConfig{
+			URL:           viper.GetString("REDIS_URL"),
+			FacultyTTLSec: viper.GetInt("REDIS_FACULTY_TTL_SECONDS"),
 		},
 	}
 }

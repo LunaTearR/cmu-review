@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -11,12 +12,16 @@ import (
 	migratepostgres "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/redis/go-redis/v9"
 
 	"cmu-review-backend/configs"
+	cacheAdapter "cmu-review-backend/internal/adapter/cache"
 	adapthttp "cmu-review-backend/internal/adapter/http"
 	"cmu-review-backend/internal/adapter/http/handler"
+	cacheRepo "cmu-review-backend/internal/adapter/repository/cache"
 	pgRepo "cmu-review-backend/internal/adapter/repository/postgres"
 	"cmu-review-backend/internal/adapter/spamcheck"
+	"cmu-review-backend/internal/domain/repository"
 	courseuc "cmu-review-backend/internal/usecase/course"
 	facultyuc "cmu-review-backend/internal/usecase/faculty"
 	reviewuc "cmu-review-backend/internal/usecase/review"
@@ -44,7 +49,30 @@ func main() {
 	// repositories
 	courseRepo := pgRepo.NewCourseRepo(db)
 	reviewRepo := pgRepo.NewReviewRepo(db)
-	facultyRepo := pgRepo.NewFacultyRepo(db)
+
+	var facultyRepo repository.FacultyRepository = pgRepo.NewFacultyRepo(db)
+	if cfg.Redis.URL != "" {
+		opt, err := redis.ParseURL(cfg.Redis.URL)
+		if err != nil {
+			log.Fatalf("redis parse url: %v", err)
+		}
+		rdb := redis.NewClient(opt)
+		pingCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		if err := rdb.Ping(pingCtx).Err(); err != nil {
+			log.Printf("redis ping failed, continuing without cache: %v", err)
+		} else {
+			ttl := time.Duration(cfg.Redis.FacultyTTLSec) * time.Second
+			facultyRepo = cacheRepo.NewFacultyCacheRepo(
+				facultyRepo,
+				cacheAdapter.NewRedisCache(rdb),
+				ttl,
+			)
+			log.Printf("redis connected; faculty cache ttl=%s", ttl)
+		}
+	} else {
+		log.Println("REDIS_URL empty; running without cache")
+	}
 
 	// spam pipeline: honeypot → rate-limit (3/hour) → content
 	spamPipeline := spamcheck.Pipeline{
