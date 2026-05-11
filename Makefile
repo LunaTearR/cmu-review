@@ -2,6 +2,8 @@
         api-run api-build api-tidy api-lint \
         fe-install fe-dev fe-build \
         migrate-up migrate-down migrate-create \
+        dev-migrate-up dev-migrate-down \
+        seed-faculties dev-seed-faculties \
         db-shell clean
 
 BACKEND_DIR  := ./backend
@@ -78,6 +80,7 @@ dev-migrate-down: ## Roll back last migration (dev stack)
 	docker compose -f docker-compose.dev.yml exec backend go run ./cmd/migrate/main.go down
 
 migrate-create: ## Create migration pair; usage: make migrate-create name=add_something
+	@if [ -z "$(name)" ]; then echo "name is required: make migrate-create name=add_something" >&2; exit 1; fi
 	cd $(BACKEND_DIR) && go run github.com/golang-migrate/migrate/v4/cmd/migrate create -ext sql -dir migrations -seq $(name)
 
 # ── Database ──────────────────────────────────────────────────────────────────
@@ -85,8 +88,11 @@ migrate-create: ## Create migration pair; usage: make migrate-create name=add_so
 db-shell: ## Open psql in running postgres container
 	docker compose exec postgres psql -U cmu_user -d cmu_review
 
-seed-faculties: ## Seed all CMU faculties into the database
+seed-faculties: ## Seed all CMU faculties into the database (prod stack)
 	docker compose exec backend /app/seed
+
+dev-seed-faculties: ## Seed all CMU faculties into the database (dev stack)
+	docker compose -f docker-compose.dev.yml exec backend go run ./cmd/seed/main.go
 
 # ── Misc ──────────────────────────────────────────────────────────────────────
 

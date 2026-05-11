@@ -5,6 +5,7 @@ import type { Faculty } from '@/types/faculty'
 export interface CourseListParams {
   faculty?: string
   credits?: number
+  category?: string
   sort?: string
   search?: string
   page?: number
@@ -15,6 +16,7 @@ function toQuery(params: CourseListParams): string {
   const q = new URLSearchParams()
   if (params.faculty)           q.set('faculty', params.faculty)
   if (params.credits)           q.set('credits', String(params.credits))
+  if (params.category)          q.set('category', params.category)
   if (params.sort)              q.set('sort', params.sort)
   if (params.search)            q.set('search', params.search)
   if (params.page)              q.set('page', String(params.page))

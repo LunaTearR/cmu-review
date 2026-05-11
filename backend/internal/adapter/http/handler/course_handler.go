@@ -61,12 +61,13 @@ func (h *CourseHandler) List(c *gin.Context) {
 	credits, _ := strconv.Atoi(c.Query("credits"))
 
 	courses, total, err := h.list.Execute(c.Request.Context(), courseuc.ListCoursesInput{
-		Search:  c.Query("search"),
-		Faculty: c.Query("faculty"),
-		Credits: credits,
-		SortBy:  c.Query("sort"),
-		Page:    page,
-		Limit:   limit,
+		Search:   c.Query("search"),
+		Faculty:  c.Query("faculty"),
+		Credits:  credits,
+		Category: c.Query("category"),
+		SortBy:   c.Query("sort"),
+		Page:     page,
+		Limit:    limit,
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
