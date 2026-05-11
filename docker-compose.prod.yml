@@ -1,0 +1,46 @@
+services:
+  postgres:
+    env_file:
+      - /srv/cmu-review/secrets/postgres.env
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  backend:
+    env_file:
+      - /srv/cmu-review/secrets/backend.env
+      - /srv/cmu-review/secrets/postgres.env
+    environment:
+      APP_PORT: 8080
+      APP_ENV: production
+    deploy:
+      resources:
+        limits:
+          memory: 100M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  frontend:
+    deploy:
+      resources:
+        limits:
+          memory: 30M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  pgadmin:
+    profiles: ["admin"]
+    env_file:
+      - /srv/cmu-review/secrets/pgadmin.env

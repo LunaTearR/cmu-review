@@ -14,6 +14,14 @@ const CREDITS_OPTIONS: SelectOption[] = [
   ...[1, 2, 3, 4, 5, 6].map(c => ({ value: c, label: `${c} หน่วยกิต`, searchKeys: [String(c)] })),
 ]
 
+const CATEGORY_OPTIONS: SelectOption[] = [
+  { value: '',                          label: 'ทุกหมวดหมู่' },
+  { value: 'หมวดวิชาบังคับ',           label: 'หมวดวิชาบังคับ' },
+  { value: 'หมวดวิชาเอกเลือก',         label: 'หมวดวิชาเอกเลือก' },
+  { value: 'หมวดวิชาเลือกทั่วไป',      label: 'หมวดวิชาเลือกทั่วไป (GE)' },
+  { value: 'หมวดวิชาฟรี',              label: 'หมวดวิชาฟรี' },
+]
+
 const SORT_OPTIONS: SelectOption[] = [
   { value: 'code',    label: 'เรียงตามรหัส' },
   { value: 'rating',  label: 'คะแนนสูงสุด' },
@@ -30,7 +38,7 @@ export function CourseListPage() {
   const [error, setError] = useState<string | null>(null)
 
   const [searchInput, setSearchInput] = useState('')
-  const [filters, setFilters] = useState({ search: '', faculty: '', credits: 0, sort: 'code' })
+  const [filters, setFilters] = useState({ search: '', faculty: '', credits: 0, category: '', sort: 'code' })
 
   useEffect(() => {
     fetchFaculties().then(setFaculties).catch(console.error)
@@ -53,6 +61,7 @@ export function CourseListPage() {
         search: f.search,
         faculty: f.faculty,
         credits: f.credits || undefined,
+        category: f.category || undefined,
         sort: f.sort,
         limit: LIMIT,
         page: 1,
@@ -77,6 +86,7 @@ export function CourseListPage() {
         search: filters.search,
         faculty: filters.faculty,
         credits: filters.credits || undefined,
+        category: filters.category || undefined,
         sort: filters.sort,
         limit: LIMIT,
         page,
@@ -127,6 +137,12 @@ export function CourseListPage() {
           value={filters.credits || ''}
           onChange={v => setFilters(f => ({ ...f, credits: Number(v) }))}
           placeholder="ทุกหน่วยกิต"
+        />
+        <SearchableSelect
+          options={CATEGORY_OPTIONS}
+          value={filters.category}
+          onChange={v => setFilters(f => ({ ...f, category: String(v) }))}
+          placeholder="ทุกหมวดหมู่"
         />
         <SearchableSelect
           options={SORT_OPTIONS}

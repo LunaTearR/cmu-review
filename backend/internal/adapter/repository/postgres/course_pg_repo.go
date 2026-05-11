@@ -77,6 +77,12 @@ func (r *coursePgRepo) List(ctx context.Context, opts repository.CourseListOpts)
 		        OR c.name_en   ILIKE $4 ESCAPE '\'
 		        OR c.name_th   ILIKE $4 ESCAPE '\'
 		        OR c.course_id ILIKE $4 ESCAPE '\'
+		      ))
+		  AND ($5 = '' OR EXISTS (
+		        SELECT 1 FROM reviews rv2
+		        WHERE rv2.course_id = c.id
+		          AND rv2.category = $5
+		          AND NOT rv2.is_hidden
 		      ))`
 
 	countQ := `SELECT COUNT(DISTINCT c.id)
@@ -85,7 +91,7 @@ func (r *coursePgRepo) List(ctx context.Context, opts repository.CourseListOpts)
 
 	var total int
 	if err := r.db.QueryRowContext(ctx, countQ,
-		opts.Faculty, opts.Credits, opts.Search, likeContains,
+		opts.Faculty, opts.Credits, opts.Search, likeContains, opts.Category,
 	).Scan(&total); err != nil {
 		return nil, 0, err
 	}
@@ -109,10 +115,10 @@ func (r *coursePgRepo) List(ctx context.Context, opts repository.CourseListOpts)
 		where + `
 		GROUP BY c.id, f.id
 		ORDER BY ` + orderBy + `
-		LIMIT $5 OFFSET $6`
+		LIMIT $6 OFFSET $7`
 
 	rows, err := r.db.QueryContext(ctx, q,
-		opts.Faculty, opts.Credits, opts.Search, likeContains,
+		opts.Faculty, opts.Credits, opts.Search, likeContains, opts.Category,
 		opts.Limit, opts.Offset,
 	)
 	if err != nil {
