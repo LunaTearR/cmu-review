@@ -2,6 +2,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { IconBookOpen, IconSearch, IconPlus, IconPen, IconSun, IconMoon } from './Icons'
 import { useReviewModal } from '@/context/ReviewModalContext'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faPaw } from '@fortawesome/free-solid-svg-icons'
 
 interface Props {
   children: React.ReactNode
@@ -68,6 +70,7 @@ export function Layout({ children }: Props) {
           <div className="caption" style={{ textAlign: 'right' }}>
             ไม่ได้สังกัดมหาวิทยาลัยเชียงใหม่อย่างเป็นทางการ<br />
             เนื้อหารีวิวเป็นความเห็นส่วนตัวของนักศึกษา
+          <FontAwesomeIcon icon={faPaw} />
           </div>
         </div>
       </footer>

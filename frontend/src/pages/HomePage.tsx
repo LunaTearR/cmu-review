@@ -36,16 +36,16 @@ export function HomePage() {
         <div className="hero-bg" />
         <div className="shell hero-content">
           <h1 className="hero-title">
-            เลือกวิชาที่ใช่<br />
-            ก่อน <span className="accent">ลงทะเบียน</span> จริง
+            หาวิชาที่ใช่<br />
+            ก่อน <span className="accent">กดลงทะเบียน</span>
           </h1>
           <p className="hero-sub">
-            ค้นหารีวิวจากเพื่อนๆ ที่เคยเรียนมาแล้ว วิชาฟรี วิชาเลือก วิชาบังคับ วิชาโท หรือจะค้นหาตามคณะก็ได้
+            อ่านรีวิวจากเพื่อนที่ลงไปแล้ว ทั้งวิชาฟรี วิชาเลือก วิชาบังคับ วิชาโท หรือกดดูตามคณะก็ได้
           </p>
           <div className="search-hero">
             <IconSearch width="20" height="20" />
             <input
-              placeholder="ค้นหารหัสวิชา เช่น 204111 หรือชื่อวิชาเป็นไทย/อังกฤษ"
+              placeholder="พิมพ์รหัสวิชา เช่น 204111 หรือชื่อวิชาก็ได้"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={onSearch}
@@ -62,8 +62,8 @@ export function HomePage() {
           <div className="shell">
             <div className="section-head">
               <div>
-                <div className="eyebrow">นักศึกษาบอกต่อ</div>
-                <h2 className="h-1">วิชาที่เพื่อนๆ ปลื้มที่สุด</h2>
+                <div className="eyebrow">เพื่อนๆ บอกต่อ</div>
+                <h2 className="h-1">วิชาที่รีวิวดีสุดตอนนี้</h2>
               </div>
               <Link to="/search" className="btn btn-ghost btn-sm">
                 ดูทั้งหมด <IconArrow />
@@ -81,8 +81,8 @@ export function HomePage() {
           <div className="shell">
             <div className="section-head">
               <div>
-                <div className="eyebrow">เลือกตามคณะ</div>
-                <h2 className="h-1">เลือกดูตามคณะของคุณ</h2>
+                <div className="eyebrow">ไล่ดูตามคณะ</div>
+                <h2 className="h-1">ลองหาวิชาจากคณะที่สนใจ</h2>
               </div>
             </div>
             <div className="fac-grid">
@@ -112,13 +112,13 @@ export function HomePage() {
           }}>
             <div>
               <div style={{ fontSize: 13, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.8, marginBottom: 8 }}>
-                ช่วยกันสร้างชุมชน
+                ส่งต่อให้รุ่นน้อง
               </div>
               <h2 style={{ fontSize: 36, lineHeight: 1.15, fontWeight: 700, margin: 0, color: 'white', textWrap: 'balance' }}>
-                เคยเรียนวิชาไหนแล้ว?<br />มาแบ่งปันให้รุ่นน้องกัน
+                ลงวิชาไหนมาแล้ว?<br />มาบอกรุ่นน้องหน่อย
               </h2>
               <p style={{ marginTop: 14, marginBottom: 0, opacity: 0.85, fontSize: 16, maxWidth: 520 }}>
-                รีวิวเดียวก็ช่วยเพื่อนๆ ตัดสินใจได้แล้ว หรือถ้าอยากช่วยมากกว่านั้น ลองเขียนรีวิวแบบละเอียด หรือเพิ่มวิชาใหม่ที่ยังไม่มีในระบบก็ได้เช่นกัน
+                รีวิวสั้นๆ ก็ช่วยรุ่นน้องตัดสินใจได้ ถ้าวิชายังไม่มีในระบบ เพิ่มเข้ามาก่อนแล้วค่อยรีวิวต่อก็ได้
               </p>
             </div>
             <div className="home-cta-actions" style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
