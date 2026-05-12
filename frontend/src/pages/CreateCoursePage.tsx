@@ -110,7 +110,7 @@ export function CreateCoursePage() {
                 onChange={(e) => set('description', e.target.value)}
                 maxLength={2000}
               />
-              <span className="field-hint">คัดลอกจาก mycourseville หรือเว็บลงทะเบียนของ มช. ก็ได้</span>
+              <span className="field-hint">คัดลอกจาก mis.cmu.ac.th หรือเว็บลงทะเบียนของ มช. ก็ได้</span>
             </div>
 
             <div className="field">

@@ -195,6 +195,12 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
   box-shadow: var(--shadow-sm);
 }
 .btn-primary:hover { background: var(--brand-ink); box-shadow: var(--shadow-md); }
+/* Dark mode: brand-deep is pale lavender (intended for text/icons). Solid button
+   needs a darker purple so white text stays readable. */
+[data-theme="dark"] .btn-primary {
+  background: #5A40A8; border-color: #5A40A8; color: #FFFFFF;
+}
+[data-theme="dark"] .btn-primary:hover { background: #6F50C2; border-color: #6F50C2; }
 .btn-soft  { background: var(--brand-tint); color: var(--brand-ink); }
 .btn-soft:hover { background: color-mix(in oklab, var(--brand-tint) 70%, var(--brand-soft)); }
 .btn-ghost { background: transparent; color: var(--ink-2); border-color: var(--border-strong); }
@@ -308,6 +314,23 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .heart-rating.is-input .heart  { cursor: pointer; width: 28px; height: 28px; }
 .heart-rating.is-input .heart:hover { transform: scale(1.1); }
 .heart-rating.is-lg .heart { width: 24px; height: 24px; }
+.heart-rating .heart svg { width: 100%; height: 100%; display: block; }
+.heart-rating .paw-half {
+  position: relative;
+  display: block;
+  width: 100%; height: 100%;
+}
+.heart-rating .paw-half .paw-base {
+  width: 100%; height: 100%;
+  color: var(--border-strong);
+}
+.heart-rating .paw-half .paw-clip {
+  position: absolute; inset: 0;
+  width: 50%; height: 100%;
+  overflow: hidden;
+  color: var(--accent-rose);
+}
+.heart-rating .paw-half .paw-clip svg { width: 200%; height: 100%; }
 
 /* ── recommendation bar ─────────────────────────────────────────── */
 .recbar {
@@ -323,7 +346,18 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 }
 
 /* ── course card ────────────────────────────────────────────────── */
-.course-card { padding: 22px; cursor: pointer; }
+/* Equal-height cards: Link must fill its grid cell, card becomes a flex column,
+   title/sub/meta reserve fixed line-counts, footer pinned with margin-top:auto. */
+.responsive-grid-3 > a,
+.responsive-grid-2 > a { display: block; height: 100%; }
+
+.course-card {
+  padding: 22px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
 .course-card .cc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
 .course-card .cc-code {
   display: inline-flex; align-items: center; gap: 6px;
@@ -332,11 +366,95 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
   font-family: var(--font-mono); font-size: 12.5px; font-weight: 600;
   letter-spacing: 0.02em;
 }
-.course-card .cc-title    { font-size: 18px; line-height: 1.35; font-weight: 600; color: var(--ink-1); margin: 0 0 4px; text-wrap: balance; }
-.course-card .cc-title-en { font-size: 13.5px; color: var(--ink-4); line-height: 1.4; margin-bottom: 14px; }
-.course-card .cc-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
-.course-card .cc-foot { display: flex; align-items: center; justify-content: space-between; padding-top: 14px; border-top: 1px solid var(--border); }
+/* Title block: Thai + English stuck together, no gap between.
+   Wrapper reserves total height (2 title lines + 1 EN line) so short titles
+   don't shrink the card. Inner elements have zero margin. */
+.course-card .cc-titles {
+  display: flex; flex-direction: column;
+  min-height: calc(1.35em * 2 + 1.4em * 1);
+  margin-bottom: 14px;
+}
+.course-card .cc-title {
+  font-size: 18px; line-height: 1.35; font-weight: 600;
+  color: var(--ink-1); margin: 0; text-wrap: balance;
+}
+.course-card .cc-title-en {
+  font-size: 13.5px; color: var(--ink-4); line-height: 1.4;
+  margin: 0;
+}
+.course-card .cc-meta {
+  display: flex;
+  flex-wrap: nowrap;              /* prevent extra row when many tags */
+  gap: 6px;
+  margin-bottom: 14px;
+  min-height: 22px;               /* matches single tag pill height */
+  overflow: hidden;
+}
+.course-card .cc-meta > * { flex-shrink: 0; max-width: 100%; min-width: 0; }
+.course-card .cc-meta > .tag { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.course-card .cc-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-top: 14px; border-top: 1px solid var(--border);
+  margin-top: auto;               /* pin footer to bottom of card */
+}
 .course-card .cc-stats { display: flex; align-items: center; gap: 10px; }
+.course-card .cc-titles { cursor: default; }
+
+/* Truncated-title tooltip — portal-mounted, position:fixed.
+   Pointer-events: none so it never blocks clicks on the Link. */
+.cc-tip {
+  position: fixed;
+  z-index: 9999;
+  transform: translate(-50%, -100%);
+  background: var(--ink-1);
+  color: var(--bg-elev);
+  padding: 10px 14px;
+  border-radius: 12px;
+  max-width: min(340px, calc(100vw - 24px));
+  box-shadow:
+    0 14px 34px rgba(31, 26, 46, 0.22),
+    0 2px 8px rgba(31, 26, 46, 0.10);
+  font-family: var(--font-thai);
+  pointer-events: none;
+  animation: ccTipIn 0.18s var(--t-easing) both;
+  word-break: break-word;
+  will-change: transform, opacity;
+}
+.cc-tip::after {
+  content: "";
+  position: absolute;
+  bottom: -6px; left: 50%;
+  transform: translateX(-50%);
+  width: 0; height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid var(--ink-1);
+}
+.cc-tip-th {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0.005em;
+}
+.cc-tip-en {
+  font-size: 12.5px;
+  line-height: 1.4;
+  opacity: 0.72;
+  margin-top: 1px;     /* tight stack — Thai/EN look like one block */
+}
+@keyframes ccTipIn {
+  from { opacity: 0; transform: translate(-50%, calc(-100% + 6px)); }
+  to   { opacity: 1; transform: translate(-50%, -100%); }
+}
+[data-theme="dark"] .cc-tip {
+  background: var(--bg-elev);
+  color: var(--ink-1);
+  border: 1px solid var(--border-strong);
+  box-shadow:
+    0 14px 34px rgba(0, 0, 0, 0.55),
+    0 2px 8px rgba(0, 0, 0, 0.35);
+}
+[data-theme="dark"] .cc-tip::after { border-top-color: var(--bg-elev); }
 
 /* compact list density */
 .course-row {
@@ -774,6 +892,22 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
   .filter-overlay.is-open { opacity: 1; pointer-events: auto; }
 
   .filter-drawer-close { display: inline-flex; }
+}
+
+/* Home CTA — dark-mode contrast fix.
+   Light mode keeps inline gradient. Dark mode swaps to deeper purple so white text
+   stays readable, and overrides the white CTA button's text color (inline style
+   var(--brand-deep) resolves to pale lavender in dark — unreadable on white). */
+[data-theme="dark"] .home-cta {
+  background: linear-gradient(135deg, #3B2A6E, #5A40A8) !important;
+  border: 1px solid #6F50C2;
+}
+[data-theme="dark"] .home-cta-actions > .btn:first-child {
+  color: #2A1B5C !important;
+}
+[data-theme="dark"] .home-cta-actions > .btn:nth-child(2) {
+  background: rgba(255,255,255,0.10) !important;
+  border-color: rgba(255,255,255,0.40) !important;
 }
 
 /* Tablet wide (≤ 960px): home CTA breaks to column */
