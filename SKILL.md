@@ -13,9 +13,9 @@ domain  ←  usecase  ←  adapter  ←  infrastructure
 - **`internal/domain/`** — zero external imports. Only stdlib.
 - **`internal/usecase/`** — imports domain only. Never imports adapter or infrastructure.
 - **`internal/adapter/`** — imports domain + usecase/port. Never imports infrastructure directly.
-- **`cmd/main.go`** — wires all layers together. DB open, server start, migration run all live here directly.
+- **`cmd/main.go`** — wires all layers. DB open, Redis open, server start, migration run all live here directly.
 
-Violation: `domain` importing `gin`, `pgx`, or any adapter package = architecture breach.
+Violation: `domain` importing `gin`, `pgx`, `redis`, or any adapter package = architecture breach.
 
 ---
 
@@ -29,15 +29,15 @@ type Review struct {
     ID           int
     CourseID     int       // FK → courses.id
     UserID       *int      // nil = anonymous
-    Rating       uint8     // 1–5
+    Rating       uint8     // 1–5 (whole) — frontend sends 0.5 increments as float, backend stores int*2? No — keep uint8, accept rounded
     Grade        string    // "" = not specified
     AcademicYear int       // Buddhist era, e.g. 2567
     Semester     int       // 1, 2, or 3
     Content      string
-    Category     string    // optional, e.g. "หมวดวิชาบังคับ"
-    Program      string    // optional, e.g. "ภาคปกติ"
-    Professor    string    // optional lecturer name
-    ReviewerName string    // optional display nickname, "" = anonymous
+    Category     string
+    Program      string
+    Professor    string
+    ReviewerName string
     IPHash       string    // sha256(ip:ua) — never raw PII
     IsHidden     bool
     CreatedAt    time.Time
@@ -45,16 +45,17 @@ type Review struct {
 
 // internal/domain/entity/course.go
 type Course struct {
-    ID          int
-    CourseCode  string    // CMU code e.g. "204111"
-    NameEN      string
-    NameTH      string
-    Credits     uint8
-    FacultyID   int
-    Description string
-    Faculty     Faculty
-    AvgRating   float64
-    ReviewCount int
+    ID           int
+    CourseCode   string    // CMU code e.g. "204111"
+    NameEN       string
+    NameTH       string
+    Credits      uint8
+    FacultyID    int
+    Description  string
+    Prerequisite string    // free text — added migration 000005
+    Faculty      Faculty
+    AvgRating    float64
+    ReviewCount  int
 }
 
 // internal/domain/entity/faculty.go
@@ -132,12 +133,13 @@ type ListOpts struct {
 
 // internal/domain/repository/course_repository.go
 type CourseListOpts struct {
-    Search  string
-    Faculty string
-    Credits int    // 0 = all
-    SortBy  string
-    Limit   int
-    Offset  int
+    Search   string
+    Faculty  string
+    Credits  int    // 0 = all
+    Category string // filters via EXISTS on review.category
+    SortBy   string
+    Limit    int
+    Offset   int
 }
 
 type CourseRepository interface {
@@ -156,10 +158,10 @@ type FacultyRepository interface {
 Rules:
 - Accept and return domain entities, never raw DB rows or pgx types.
 - `context.Context` as first arg always.
-- Map pgx errors to domain errors in `mapPgError` / `mapCourseError` — callers never see driver-specific errors.
-- `List` returns `([]entity.T, int, error)` — the `int` is total count for pagination.
+- Map pgx errors to domain errors in `mapPgError` / `mapCourseError`.
+- `List` returns `([]entity.T, int, error)` — `int` is total count for pagination.
 
-### Implementation — in adapter/repository/postgres
+### Postgres implementation
 
 ```go
 type coursePgRepo struct{ db *sql.DB }
@@ -170,10 +172,31 @@ func NewCourseRepo(db *sql.DB) repository.CourseRepository {
 ```
 
 - Use `database/sql` with `_ "github.com/jackc/pgx/v5/stdlib"`.
-- SQL strings as `const` inside functions. Use string concatenation only for ORDER BY and WHERE clauses shared between count and list queries.
+- SQL strings as `const` inside functions. String concatenation only for ORDER BY and WHERE clauses shared between count + list queries.
 - `mapPgError` translates pgx unique-violation (23505) / FK violation (23503) to domain errors.
 - LIKE/ILIKE searches use `escapeLike()` to prevent injection: `strings.ReplaceAll` on `\`, `%`, `_`.
-- Course search: `to_tsvector + plainto_tsquery` for full-text with ILIKE fallback using `%term%` (contains, not prefix).
+- Course search: `to_tsvector + plainto_tsquery` for full-text with ILIKE fallback (`%term%` = contains, not prefix).
+- Course list/get SQL includes `c.prerequisite` column (added migration 000005).
+
+### Redis cache adapter
+
+```go
+// internal/adapter/cache/redis_faculty.go (decorator pattern)
+type CachedFacultyRepo struct {
+    inner repository.FacultyRepository
+    rdb   *redis.Client
+    ttl   time.Duration
+}
+```
+
+Decorates the Postgres faculty repo. Wire in `cmd/main.go`:
+
+```go
+facultyRepo := postgres.NewFacultyRepo(db)
+facultyRepo = cache.NewCachedFacultyRepo(facultyRepo, rdb, 24*time.Hour)
+```
+
+Cache the rarely-changing faculty list. Don't cache courses or reviews — write-heavy + filtered queries.
 
 ---
 
@@ -199,8 +222,7 @@ type Actor interface {
 }
 ```
 
-- Use cases depend on these interfaces, never on concrete adapters.
-- Input structs carry all data — no HTTP primitives (`*gin.Context`, `*http.Request`) ever enter a use case.
+Use cases depend on these interfaces, never on concrete adapters. Input structs carry all data — no HTTP primitives (`*gin.Context`, `*http.Request`) ever enter a use case.
 
 ---
 
@@ -239,6 +261,19 @@ func (uc *CreateReviewUseCase) Execute(ctx context.Context, in CreateReviewInput
 }
 ```
 
+```go
+// internal/usecase/course/create_course.go
+type CreateCourseInput struct {
+    CourseCode   string
+    NameTH       string
+    NameEN       string
+    Credits      uint8
+    FacultyID    int
+    Description  string
+    Prerequisite string   // optional, "" = none
+}
+```
+
 Business validation lives in the use case, not the handler.
 
 ---
@@ -248,7 +283,6 @@ Business validation lives in the use case, not the handler.
 ### SubmitterHash (actor middleware)
 
 ```go
-// sha256(ip + ":" + user-agent) — no salt yet
 h := sha256.New()
 h.Write([]byte(ip + ":" + ua))
 hash := hex.EncodeToString(h.Sum(nil))
@@ -259,7 +293,7 @@ Never log or persist raw IPs. Only the hash is stored in `reviews.ip_hash`.
 ### Pipeline order (fastest first)
 
 ```
-1. Honeypot       — "website" JSON field must be empty; bots fill it
+1. Honeypot       — "website" JSON field must be empty
 2. Rate limit     — CountRecentByHash(hash, since) >= threshold → ErrRateLimited
 3. Content rules  — len(TrimSpace(content)) < MinLen → ErrContentTooShort
 ```
@@ -302,7 +336,7 @@ func (h *ReviewHandler) Create(c *gin.Context) {
 - `ErrHoneypotTripped`, `ErrInvalidRating`, `ErrInvalidSemester`, `ErrContentTooShort` → 422
 - anything else → 500 with generic message
 
-### Route registration (current)
+### Route registration
 
 ```go
 // internal/adapter/http/router.go
@@ -356,31 +390,28 @@ type CreateReviewRequest struct {
     Website      string `json:"website"`      // honeypot — must be empty
 }
 
-type ReviewResponse struct {
-    ID           int    `json:"id"`
-    Rating       uint8  `json:"rating"`
-    Grade        string `json:"grade"`
-    AcademicYear int    `json:"academic_year"`
-    Semester     int    `json:"semester"`
-    Content      string `json:"content"`
-    Category     string `json:"category"`
-    Program      string `json:"program"`
-    Professor    string `json:"professor"`
-    ReviewerName string `json:"reviewer_name"`
-    CreatedAt    string `json:"created_at"`   // RFC3339
+// internal/adapter/http/dto/course_dto.go
+type CreateCourseRequest struct {
+    CourseCode   string `json:"course_id"    binding:"required,max=20"`
+    NameTH       string `json:"name_th"      binding:"required,max=255"`
+    NameEN       string `json:"name_en"      binding:"required,max=255"`
+    Credits      uint8  `json:"credits"      binding:"required,min=1,max=12"`
+    FacultyID    int    `json:"faculty_id"   binding:"required,min=1"`
+    Description  string `json:"description"`
+    Prerequisite string `json:"prerequisite" binding:"max=500"`
 }
 
-// internal/adapter/http/dto/course_dto.go
 type CourseResponse struct {
-    ID          int          `json:"id"`
-    CourseCode  string       `json:"course_id"`
-    NameTH      string       `json:"name_th"`
-    NameEN      string       `json:"name_en"`
-    Credits     uint8        `json:"credits"`
-    Description string       `json:"description"`
-    Faculty     FacultyEmbed `json:"faculty"`
-    AvgRating   float64      `json:"avg_rating"`
-    ReviewCount int          `json:"review_count"`
+    ID           int          `json:"id"`
+    CourseCode   string       `json:"course_id"`
+    NameTH       string       `json:"name_th"`
+    NameEN       string       `json:"name_en"`
+    Credits      uint8        `json:"credits"`
+    Description  string       `json:"description"`
+    Prerequisite string       `json:"prerequisite"`
+    Faculty      FacultyEmbed `json:"faculty"`
+    AvgRating    float64      `json:"avg_rating"`
+    ReviewCount  int          `json:"review_count"`
 }
 ```
 
@@ -393,7 +424,6 @@ Faculty list endpoint returns `{"data": []FacultyResponse}`. The frontend `fetch
 ### Full-text search on courses
 
 ```sql
--- course_pg_repo.go uses both approaches:
 -- 1. tsquery for full-word matching
 to_tsvector('simple', name_th || ' ' || name_en || ' ' || course_id)
   @@ plainto_tsquery('simple', $search)
@@ -402,12 +432,22 @@ to_tsvector('simple', name_th || ' ' || name_en || ' ' || course_id)
 course_id ILIKE $likeContains ESCAPE '\'   -- $likeContains = '%' + escaped + '%'
 ```
 
-`escapeLike(s)` escapes `\`, `%`, `_` before interpolating into ILIKE patterns.  
-`'simple'` config works for both Thai and ASCII without stemming.
+`escapeLike(s)` escapes `\`, `%`, `_`. `'simple'` config works for both Thai and ASCII without stemming.
+
+### Category filter via EXISTS
+
+Course has no category column. Filter by reviewer-assigned category:
+
+```sql
+AND ($category = '' OR EXISTS (
+    SELECT 1 FROM reviews rv2
+    WHERE rv2.course_id = c.id
+      AND rv2.category = $category
+      AND NOT rv2.is_hidden
+))
+```
 
 ### Aggregates inline
-
-`AvgRating` and `ReviewCount` are computed inline per query:
 
 ```sql
 COALESCE(AVG(rv.rating) FILTER (WHERE NOT rv.is_hidden), 0) AS avg_rating,
@@ -426,7 +466,7 @@ COUNT(rv.id) FILTER (WHERE NOT rv.is_hidden) AS review_count
 viper.BindEnv("DATABASE_URL")
 viper.BindEnv("DATABASE_PRIVATE_URL")
 viper.BindEnv("PGHOST")
-// ... etc
+viper.BindEnv("REDIS_URL")
 ```
 
 DB connection resolved by `resolveDBURL()`:
@@ -438,25 +478,95 @@ DB connection resolved by `resolveDBURL()`:
 
 ## 11. React + TypeScript Patterns
 
+### Routing
+
+```tsx
+// App.tsx
+<DataRefreshProvider>
+  <ReviewModalProvider>
+    <Layout>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/search" element={<CourseListPage />} />
+        <Route path="/courses/new" element={<CreateCoursePage />} />
+        <Route path="/courses/:id" element={<CourseDetailPage />} />
+      </Routes>
+    </Layout>
+  </ReviewModalProvider>
+</DataRefreshProvider>
+```
+
+No `/reviews/new` route — review submission is a global modal.
+
+### DataRefreshContext
+
+Version-counter pattern for cross-page cache invalidation.
+
+```tsx
+// context/DataRefreshContext.tsx
+interface Ctx {
+  coursesV: number
+  reviewsV: number
+  bump: (k: 'courses' | 'reviews') => void
+}
+```
+
+Each page includes the relevant counter in its fetch effect deps:
+
+```tsx
+const { coursesV } = useDataRefresh()
+useEffect(() => {
+  fetchCourses({...}).then(setCourses)
+}, [coursesV, /* other deps */])
+```
+
+After mutations, call `bump('courses')` (or `bump('reviews')`) to invalidate all subscribers. CreateCoursePage calls `bump('courses')` after success. ReviewModalContext calls both `bump('reviews')` and `bump('courses')` after successful review (stats change).
+
+### ReviewModalContext
+
+Global review modal. Pages call `useReviewModal().open(opts)` to launch.
+
+```tsx
+interface OpenOpts {
+  courseId?: number
+  onSuccess?: (review: Review, courseId: number) => void
+}
+```
+
+CourseDetailPage uses `onSuccess` for optimistic prepend:
+
+```tsx
+const optimisticAddReview = useCallback((review: Review) => {
+  setReviews(prev => [review, ...prev])
+  setTotal(prev => prev + 1)
+  setCourse(prev => prev ? {
+    ...prev,
+    avg_rating: (prev.avg_rating * prev.review_count + review.rating) / (prev.review_count + 1),
+    review_count: prev.review_count + 1,
+  } : prev)
+}, [])
+
+openReview({ courseId: course.id, onSuccess: optimisticAddReview })
+```
+
+Modal portals to `document.body`. ESC + backdrop close + scroll lock all wired in the provider.
+
 ### State + fetch pattern in pages
 
 ```tsx
-const loadInitial = useCallback(async (f: typeof filters) => {
-    setLoading(true)
-    setError(null)
+const loadInitial = useCallback(async () => {
+    setLoading(true); setError(null)
     try {
-        const res = await fetchCourses({ search: f.search, faculty: f.faculty, page: 1, limit: LIMIT })
-        setCourses(res.data)
-        setTotal(res.total)
-        setOffset(res.data.length)
+        const res = await fetchCourses({ ...apiFilters, limit: LIMIT, page: 1 })
+        setCourses(res.data); setTotal(res.total); setOffset(res.data.length)
     } catch {
         setError('โหลดข้อมูลไม่สำเร็จ กรุณาลองใหม่')
     } finally {
         setLoading(false)
     }
-}, [])
+}, [apiFilters])
 
-useEffect(() => { loadInitial(filters) }, [filters, loadInitial])
+useEffect(() => { loadInitial() }, [loadInitial, coursesV])
 ```
 
 ### API client rules
@@ -464,40 +574,67 @@ useEffect(() => { loadInitial(filters) }, [filters, loadInitial])
 - All HTTP via `src/api/client.ts`. Never call `fetch` directly from components.
 - Base path: `VITE_API_BASE_URL` env var (baked at Vite build time) falling back to `/api/v1`.
 - Throws `ApiError` (not plain `Error`) on non-2xx.
-- When backend returns `{data: T[]}` envelope, unwrap in the API module (`.then(r => r.data)`) — callers always receive the concrete type.
+- When backend returns `{data: T[]}` envelope, unwrap in the API module — callers receive concrete type.
 
-### SearchableSelect component
-
-`src/components/SearchableSelect.tsx` — reusable typeahead dropdown. Use for all filter dropdowns.
+### CourseFilterPanel + drawer pattern
 
 ```tsx
-interface SelectOption {
-  value: string | number
-  label: string
-  searchKeys?: string[]  // extra strings to match (e.g. English name, code)
+<CourseFilterPanel {...filterProps} variant="inline" open={true} />   // desktop
+{createPortal(
+  <CourseFilterPanel {...filterProps} variant="drawer" open={filterOpen} />,
+  document.body
+)}                                                                     // mobile
+```
+
+CSS hides whichever variant doesn't match viewport. Drawer (`variant="drawer"`) is body-portaled to avoid iOS Safari `position: fixed` issues with ancestor `overflow` rules.
+
+```css
+.filter-panel.is-inline { display: block; }
+.filter-panel.is-drawer { display: none; }
+
+@media (max-width: 1024px) {
+  .filter-panel.is-inline { display: none; }
+  .filter-panel.is-drawer {
+    display: block; position: fixed;
+    transform: translateX(-100%);
+    transition: transform 0.28s ease;
+    isolation: isolate;
+  }
+  .filter-panel.is-drawer.is-open { transform: translateX(0); }
 }
 ```
 
-- Shows search input only when `options.length > 6`.
-- `searchKeys` enables cross-field matching: faculty options pass `[name_en, code]` so typing "sci" matches "คณะวิทยาศาสตร์" via code `SCI` or English name.
-- Keyboard: Arrow keys navigate, Enter selects, Escape closes.
+### Rating component (half-heart)
 
-### ReviewModal
+`event.clientX - rect.left < rect.width / 2` decides half vs whole on each heart. Returns `i + 0.5` or `i + 1`.
 
-`src/components/ReviewModal.tsx` — full review detail overlay.
+```tsx
+const halfFromEvent = (e: React.MouseEvent<HTMLSpanElement>, i: number): number => {
+  const rect = e.currentTarget.getBoundingClientRect()
+  const x = e.clientX - rect.left
+  return x < rect.width / 2 ? i + 0.5 : i + 1
+}
 
-- `createPortal` to `document.body` — escapes sidebar stacking context.
-- `displayed` state lags the `review` prop by 220 ms so CSS exit animation plays before unmount.
-- ESC, backdrop click, and close button all dismiss. Body scroll locked while open.
+onMouseMove={interactive ? (e) => setHover(halfFromEvent(e, i)) : undefined}
+onClick={interactive ? (e) => onChange?.(halfFromEvent(e, i)) : undefined}
+```
+
+Display renders filled / half-fill SVG gradient / outline by checking `display - i >= 0.5`.
 
 ### Styling
 
-Inline styles only — no CSS framework. CSS custom properties defined in `src/index.css`:
-- `--cmu-primary`: brand purple
-- `--cmu-text`, `--cmu-text-muted`
-- `--cmu-bg`, `--cmu-bg-card`
-- `--cmu-border`, `--cmu-border-strong`
-- `--cmu-error`
+Class-based design system in `src/index.css`. Tokens in `:root` (light) and `[data-theme="dark"]`:
+- `--bg`, `--bg-soft`, `--surface`, `--border`, `--border-strong`
+- `--ink-1` to `--ink-4` (heading → tertiary text)
+- `--brand`, `--brand-soft`, `--brand-tint`, `--brand-deep`, `--brand-ink` (lavender scale)
+- `--accent-rose`, `--accent-amber`, `--accent-mint`, `--accent-blue` (chip/tag colors)
+- `--shadow-sm`, `--shadow-md`, `--shadow-lg`
+- `--r-sm` through `--r-pill` (radius scale)
+- `--font-thai`, `--font-display`, `--font-mono`
+
+Utility classes: `.btn`, `.btn-primary/-ghost/-soft`, `.tag`, `.chip`, `.card`, `.input`, `.field`, `.seg`, `.form-row`, `.form-row-3`, `.form-actions`, `.heart-rating`, `.review`, `.course-card`, `.search-hero`, `.filter-panel`, `.responsive-grid-2/-3`, plus responsive helpers (`.line-clamp-N`, `.truncate`, `.shell`, `.shell-narrow`).
+
+Theme persistence: `Layout.tsx` toggles `data-theme="dark"` on `<html>` and writes to localStorage.
 
 ---
 
@@ -505,7 +642,7 @@ Inline styles only — no CSS framework. CSS custom properties defined in `src/i
 
 ### Adding authentication
 
-1. `Review.UserID *int` is already nullable — no schema change needed.
+1. `Review.UserID *int` is already nullable — no schema change.
 2. Add JWT parsing in `internal/adapter/http/middleware/actor.go`. Populate an `authenticatedActor` that returns non-nil `UserID()`.
 3. `ActorFromContext(c)` always returns a non-nil `port.Actor` — use cases don't change.
 
@@ -521,3 +658,22 @@ Uncomment this line in `cmd/main.go`:
 ```go
 spamcheck.NewRateLimitChecker(reviewRepo, 3, time.Hour),
 ```
+
+### Adding a course field (precedent: prerequisite migration 000005)
+
+1. `make migrate-create name=add_course_X` — generate up/down SQL pair.
+2. Add `ALTER TABLE courses ADD COLUMN X ...` to the `.up.sql`.
+3. Add field to `entity/course.go`.
+4. Update `course_pg_repo.go` Create/List/GetByID SQL + Scan signatures.
+5. Add field to `usecase/course/create_course.go` `CreateCourseInput`.
+6. Add to `dto/course_dto.go` `CreateCourseRequest` + `CourseResponse` + `ToCourseResponse`.
+7. Add field to frontend `types/course.ts` Course + CreateCoursePayload.
+8. Surface in `CreateCoursePage.tsx` form + `CourseDetailPage.tsx` display.
+
+### Frontend: cross-page data invalidation
+
+When adding a mutation that affects another page's data:
+
+1. After the mutation succeeds, call `bump('courses')` or `bump('reviews')` from `useDataRefresh()`.
+2. Subscribers (any page that includes the version counter in its fetch `useEffect` deps) automatically refetch.
+3. For instant feedback on the same page, also do an optimistic local state update before the bump.
