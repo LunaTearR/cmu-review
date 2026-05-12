@@ -21,11 +21,11 @@ const RATING_LABELS: Record<number, string> = {
   5: 'แนะนำมาก',
 }
 
-const PROGRAMS = ['ปกติ', 'พิเศษ', 'นานาชาติ', 'อื่นๆ']
+const PROGRAMS = ['ภาคปกติ', 'ภาคพิเศษ', 'นานาชาติ', 'อื่นๆ']
 const CATEGORIES = [
   'หมวดวิชาบังคับ',
   'หมวดวิชาเอกเลือก',
-  'หมวดวิชาเลือกทั่วไป',
+  'หมวดวิชาเลือกทั่วไป (GE)',
   'หมวดวิชาฟรี',
   'อื่นๆ',
 ]
@@ -126,8 +126,8 @@ export function ReviewForm({ courseId: _courseId, onSubmit, onCancel }: Props) {
             <div className="field">
               <label className="field-label">ภาคเรียน</label>
               <select className="input" value={semester} onChange={(e) => setSemester(Number(e.target.value))}>
-                <option value={1}>ภาค 1</option>
-                <option value={2}>ภาค 2</option>
+                <option value={1}>ภาคเรียนที่ 1</option>
+                <option value={2}>ภาคเรียนที่ 2</option>
                 <option value={3}>ภาคฤดูร้อน</option>
               </select>
             </div>

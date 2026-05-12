@@ -11,8 +11,9 @@ const SEMESTER_LABEL: Record<number, string> = { 1: 'เทอม 1', 2: 'เท
 const gradeColor = (g: string): string => {
   if (['A', 'A-'].includes(g)) return 'tag-mint'
   if (['B+', 'B', 'B-'].includes(g)) return 'tag-brand'
-  if (['C+', 'C', 'C-'].includes(g)) return 'tag-amber'
-  if (['D+', 'D', 'F'].includes(g)) return 'tag-rose'
+  if (['C+', 'C', 'C-'].includes(g)) return 'tag-blue'
+  if (['D+', 'D'].includes(g)) return 'tag-amber'
+  if (['F', 'W'].includes(g)) return 'tag-rose'
   return ''
 }
 
@@ -34,7 +35,7 @@ export function ReviewCard({ review, onClick }: Props) {
           <div className="avatar">{initial}</div>
           <div>
             <div style={{ fontWeight: 600, color: 'var(--ink-1)', fontSize: 14.5 }}>{nick}</div>
-            <div className="caption">รีวิวเมื่อ{SEMESTER_LABEL[review.semester] ?? `ภาค ${review.semester}`}/{review.academic_year}</div>
+            <div className="caption">เรียนเมื่อ {SEMESTER_LABEL[review.semester] ?? `ภาค ${review.semester}`}/{review.academic_year}</div>
           </div>
         </div>
         <Rating value={review.rating} size="lg" />
