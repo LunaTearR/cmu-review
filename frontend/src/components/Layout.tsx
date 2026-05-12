@@ -22,6 +22,12 @@ export function Layout({ children }: Props) {
 
   const isHome = loc.pathname === '/'
 
+  // forward active faculty filter from /search → /courses/new so faculty pre-fills
+  const activeFaculty = new URLSearchParams(loc.search).get('faculty') ?? ''
+  const addCourseHref = activeFaculty
+    ? `/courses/new?faculty=${encodeURIComponent(activeFaculty)}`
+    : '/courses/new'
+
   return (
     <>
       <header className="nav">
@@ -38,7 +44,7 @@ export function Layout({ children }: Props) {
                 <span>ค้นหารหัสวิชา / ชื่อวิชา</span>
               </button>
             )}
-            <Link to="/courses/new" className="btn btn-ghost btn-sm" aria-label="เพิ่มวิชา">
+            <Link to={addCourseHref} className="btn btn-ghost btn-sm" aria-label="เพิ่มวิชา">
               <IconPlus /> <span className="nav-text">เพิ่มวิชา</span>
             </Link>
             <button className="btn btn-primary btn-sm" onClick={() => openReview()} aria-label="เขียนรีวิว">

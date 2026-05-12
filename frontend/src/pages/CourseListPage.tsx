@@ -28,11 +28,12 @@ export function CourseListPage() {
 
   const initialQuery = params.get('q') ?? ''
   const initialFaculty = params.get('faculty') ?? ''
-  const initialFacCodes = initialFaculty ? initialFaculty.split(',').filter(Boolean) : []
+  // strip legacy comma-separated values: keep only first code
+  const initialFacCode = initialFaculty.split(',').filter(Boolean)[0] ?? ''
 
   const [searchInput, setSearchInput] = useState(initialQuery)
   const [query, setQuery] = useState(initialQuery)
-  const [facCodes, setFacCodes] = useState<string[]>(initialFacCodes)
+  const [facCode, setFacCode] = useState<string>(initialFacCode)
   const [cats, setCats] = useState<string[]>([])
   const [credits, setCredits] = useState<number[]>([])
   const [sort, setSort] = useState<'rating' | 'reviews' | 'code'>('rating')
@@ -64,14 +65,14 @@ export function CourseListPage() {
 
   const toggle = <T,>(arr: T[], v: T): T[] => (arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v])
 
-  // backend accepts faculty as comma-separated codes. category/credits still single (first selected).
+  // single-select faculty. category/credits still single (first selected).
   const apiFilters = useMemo(() => ({
     search: query,
-    faculty: facCodes.join(','),
+    faculty: facCode,
     credits: credits[0],
     category: cats[0],
     sort,
-  }), [query, facCodes, credits, cats, sort])
+  }), [query, facCode, credits, cats, sort])
 
   const loadInitial = useCallback(async () => {
     setLoading(true); setError(null)
@@ -91,9 +92,9 @@ export function CourseListPage() {
   useEffect(() => {
     const p = new URLSearchParams()
     if (query) p.set('q', query)
-    if (facCodes.length) p.set('faculty', facCodes.join(','))
+    if (facCode) p.set('faculty', facCode)
     setParams(p, { replace: true })
-  }, [query, facCodes, setParams])
+  }, [query, facCode, setParams])
 
   const loadMore = async () => {
     setLoadingMore(true)
@@ -110,20 +111,21 @@ export function CourseListPage() {
   }
 
   const onSearchSubmit = (e: React.FormEvent) => { e.preventDefault(); setQuery(searchInput) }
-  const clearAll = () => { setFacCodes([]); setCats([]); setCredits([]); setQuery(''); setSearchInput('') }
-  const activeFilterCount = facCodes.length + cats.length + credits.length + (query ? 1 : 0)
+  const clearAll = () => { setFacCode(''); setCats([]); setCredits([]); setQuery(''); setSearchInput('') }
+  const activeFilterCount = (facCode ? 1 : 0) + cats.length + credits.length + (query ? 1 : 0)
 
   const hasMore = courses.length < total
 
   const filterProps = {
     faculties,
-    facCodes,
+    facCode,
     cats,
     credits,
     categories: CATEGORIES,
     creditOptions: CREDITS,
     activeCount: activeFilterCount,
-    onToggleFaculty: (code: string) => setFacCodes(toggle(facCodes, code)),
+    // click same code = clear; click new code = replace
+    onSelectFaculty: (code: string) => setFacCode(prev => (prev === code ? '' : code)),
     onToggleCat: (c: string) => setCats(toggle(cats, c)),
     onToggleCredit: (n: number) => setCredits(toggle(credits, n)),
     onClear: () => { clearAll(); setFilterOpen(false) },
@@ -210,7 +212,10 @@ export function CourseListPage() {
               <div style={{ fontSize: 38, marginBottom: 10 }}>🔍</div>
               <div className="h-3" style={{ marginBottom: 6 }}>ไม่พบวิชาที่ค้นหา</div>
               <div className="body-sm" style={{ marginBottom: 18 }}>ลองปรับคำค้น หรือถ้ายังไม่มีในระบบ ช่วยกันเพิ่มได้</div>
-              <button className="btn btn-primary" onClick={() => navigate('/courses/new')}>
+              <button
+                className="btn btn-primary"
+                onClick={() => navigate(facCode ? `/courses/new?faculty=${encodeURIComponent(facCode)}` : '/courses/new')}
+              >
                 <IconPlus /> เพิ่มวิชาใหม่
               </button>
             </div>

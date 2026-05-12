@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import type { Faculty } from '@/types/faculty'
 import { fetchFaculties, createCourse } from '@/api/courses'
 import { ApiError } from '@/api/client'
@@ -9,6 +9,8 @@ import { useDataRefresh } from '@/context/DataRefreshContext'
 
 export function CreateCoursePage() {
   const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const prefillFacultyCode = params.get('faculty') ?? ''
   const { bump } = useDataRefresh()
   const [faculties, setFaculties] = useState<Faculty[]>([])
   const [submitting, setSubmitting] = useState(false)
@@ -27,9 +29,12 @@ export function CreateCoursePage() {
   useEffect(() => {
     fetchFaculties().then((list) => {
       setFaculties(list)
-      if (list.length > 0) setForm((f) => ({ ...f, faculty_id: list[0].id }))
+      if (prefillFacultyCode) {
+        const match = list.find((f) => f.code === prefillFacultyCode)
+        if (match) setForm((f) => ({ ...f, faculty_id: match.id }))
+      }
     }).catch(console.error)
-  }, [])
+  }, [prefillFacultyCode])
 
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm(f => ({ ...f, [k]: v }))
 
