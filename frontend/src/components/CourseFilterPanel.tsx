@@ -3,7 +3,7 @@ import { IconFilter, IconClose } from './Icons'
 
 interface Props {
   faculties: Faculty[]
-  facCode: string
+  facCodes: string[]
   cats: string[]
   credits: number[]
   categories: string[]
@@ -11,7 +11,7 @@ interface Props {
   activeCount: number
   open: boolean
   variant?: 'inline' | 'drawer'
-  onSetFaculty: (code: string) => void
+  onToggleFaculty: (code: string) => void
   onToggleCat: (cat: string) => void
   onToggleCredit: (n: number) => void
   onClear: () => void
@@ -19,8 +19,8 @@ interface Props {
 }
 
 export function CourseFilterPanel({
-  faculties, facCode, cats, credits, categories, creditOptions, activeCount, open, variant = 'inline',
-  onSetFaculty, onToggleCat, onToggleCredit, onClear, onClose,
+  faculties, facCodes, cats, credits, categories, creditOptions, activeCount, open, variant = 'inline',
+  onToggleFaculty, onToggleCat, onToggleCredit, onClear, onClose,
 }: Props) {
   const variantClass = variant === 'drawer' ? 'is-drawer' : 'is-inline'
   return (
@@ -65,9 +65,9 @@ export function CourseFilterPanel({
         <div className="filter-group-label">คณะ</div>
         <div className="fac-scroll" style={{ maxHeight: 260, overflowY: 'auto', marginRight: -6, paddingRight: 6 }}>
           {faculties.map(f => {
-            const on = facCode === f.code
+            const on = facCodes.includes(f.code)
             return (
-              <div key={f.id} className="checkbox-row" onClick={() => onSetFaculty(on ? '' : f.code)}>
+              <div key={f.id} className="checkbox-row" onClick={() => onToggleFaculty(f.code)}>
                 <span className={`cbox ${on ? 'is-on' : ''}`} />
                 <span className="truncate" style={{ flex: 1 }}>{f.name_th}</span>
               </div>

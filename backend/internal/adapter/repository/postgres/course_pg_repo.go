@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/lib/pq"
 
 	"cmu-review-backend/internal/domain/entity"
 	domainerrors "cmu-review-backend/internal/domain/errors"
@@ -68,8 +69,14 @@ func (r *coursePgRepo) List(ctx context.Context, opts repository.CourseListOpts)
 	escaped := escapeLike(opts.Search)
 	likeContains := "%" + escaped + "%"
 
+	faculties := opts.Faculties
+	if faculties == nil {
+		faculties = []string{}
+	}
+	facArg := pq.Array(faculties)
+
 	const where = `
-		WHERE ($1 = '' OR f.code = $1)
+		WHERE (cardinality($1::text[]) = 0 OR f.code = ANY($1::text[]))
 		  AND ($2 = 0  OR c.credits = $2)
 		  AND ($3 = '' OR (
 		        to_tsvector('simple', c.name_th || ' ' || c.name_en || ' ' || c.course_id)
@@ -91,7 +98,7 @@ func (r *coursePgRepo) List(ctx context.Context, opts repository.CourseListOpts)
 
 	var total int
 	if err := r.db.QueryRowContext(ctx, countQ,
-		opts.Faculty, opts.Credits, opts.Search, likeContains, opts.Category,
+		facArg, opts.Credits, opts.Search, likeContains, opts.Category,
 	).Scan(&total); err != nil {
 		return nil, 0, err
 	}
@@ -118,7 +125,7 @@ func (r *coursePgRepo) List(ctx context.Context, opts repository.CourseListOpts)
 		LIMIT $6 OFFSET $7`
 
 	rows, err := r.db.QueryContext(ctx, q,
-		opts.Faculty, opts.Credits, opts.Search, likeContains, opts.Category,
+		facArg, opts.Credits, opts.Search, likeContains, opts.Category,
 		opts.Limit, opts.Offset,
 	)
 	if err != nil {

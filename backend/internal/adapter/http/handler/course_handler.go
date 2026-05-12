@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -61,14 +62,24 @@ func (h *CourseHandler) List(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	credits, _ := strconv.Atoi(c.Query("credits"))
 
+	// `faculty` accepts a comma-separated list of codes (e.g. "ENG,SCI") for multi-select.
+	var faculties []string
+	if raw := c.Query("faculty"); raw != "" {
+		for _, code := range strings.Split(raw, ",") {
+			if code = strings.TrimSpace(code); code != "" {
+				faculties = append(faculties, code)
+			}
+		}
+	}
+
 	courses, total, err := h.list.Execute(c.Request.Context(), courseuc.ListCoursesInput{
-		Search:   c.Query("search"),
-		Faculty:  c.Query("faculty"),
-		Credits:  credits,
-		Category: c.Query("category"),
-		SortBy:   c.Query("sort"),
-		Page:     page,
-		Limit:    limit,
+		Search:    c.Query("search"),
+		Faculties: faculties,
+		Credits:   credits,
+		Category:  c.Query("category"),
+		SortBy:    c.Query("sort"),
+		Page:      page,
+		Limit:     limit,
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
