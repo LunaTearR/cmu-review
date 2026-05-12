@@ -3,7 +3,7 @@ import { useState, useRef, useEffect, useId } from 'react'
 export interface SelectOption {
   value: string | number
   label: string
-  searchKeys?: string[] // extra strings to match against (e.g. name_en, code)
+  searchKeys?: string[]
 }
 
 interface Props {
@@ -33,17 +33,12 @@ export function SearchableSelect({ options, value, onChange, placeholder = 'เ�
       })
     : options
 
-  useEffect(() => {
-    if (!open) { setQuery(''); setHighlighted(0) }
-  }, [open])
-
+  useEffect(() => { if (!open) { setQuery(''); setHighlighted(0) } }, [open])
   useEffect(() => { setHighlighted(0) }, [query])
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -51,21 +46,24 @@ export function SearchableSelect({ options, value, onChange, placeholder = 'เ�
 
   const select = (opt: SelectOption) => { onChange(opt.value); setOpen(false) }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!open) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(true) } return }
-    if (e.key === 'Escape') { setOpen(false); return }
-    if (e.key === 'ArrowDown') { e.preventDefault(); setHighlighted(h => Math.min(h + 1, filtered.length - 1)); scrollHighlighted() }
-    if (e.key === 'ArrowUp') { e.preventDefault(); setHighlighted(h => Math.max(h - 1, 0)); scrollHighlighted() }
-    if (e.key === 'Enter') { e.preventDefault(); if (filtered[highlighted]) select(filtered[highlighted]) }
-  }
-
   const scrollHighlighted = () => {
     const el = listRef.current?.children[highlighted] as HTMLElement | undefined
     el?.scrollIntoView({ block: 'nearest' })
   }
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!open) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(true) }
+      return
+    }
+    if (e.key === 'Escape') setOpen(false)
+    if (e.key === 'ArrowDown') { e.preventDefault(); setHighlighted(h => Math.min(h + 1, filtered.length - 1)); scrollHighlighted() }
+    if (e.key === 'ArrowUp')   { e.preventDefault(); setHighlighted(h => Math.max(h - 1, 0)); scrollHighlighted() }
+    if (e.key === 'Enter')     { e.preventDefault(); if (filtered[highlighted]) select(filtered[highlighted]) }
+  }
+
   return (
-    <div ref={containerRef} style={{ position: 'relative', display: 'inline-block' }} onKeyDown={handleKeyDown}>
+    <div ref={containerRef} style={{ position: 'relative', display: 'inline-block', minWidth: 0 }} onKeyDown={handleKeyDown}>
       <button
         id={id}
         type="button"
@@ -73,79 +71,51 @@ export function SearchableSelect({ options, value, onChange, placeholder = 'เ�
         onClick={() => { setOpen(o => !o); if (!open) setTimeout(() => inputRef.current?.focus(), 0) }}
         aria-haspopup="listbox"
         aria-expanded={open}
+        className="input"
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.375rem',
-          padding: '0.5rem 0.75rem',
-          background: disabled ? 'var(--cmu-bg)' : '#fff',
-          border: '1px solid var(--cmu-border)',
-          borderRadius: 8,
-          fontSize: '0.9375rem',
+          display: 'flex', alignItems: 'center', gap: '0.375rem',
+          padding: '10px 14px',
           cursor: disabled ? 'not-allowed' : 'pointer',
-          color: selected ? 'var(--cmu-text)' : 'var(--cmu-text-muted)',
-          minWidth: 140,
+          color: selected ? 'var(--ink-1)' : 'var(--ink-4)',
           whiteSpace: 'nowrap',
-          opacity: disabled ? 0.6 : 1,
-          fontFamily: 'inherit',
+          textAlign: 'left',
         }}
       >
-        <span style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {selected ? selected.label : placeholder}
         </span>
-        <span style={{ fontSize: '0.7rem', color: 'var(--cmu-text-muted)', flexShrink: 0 }}>{open ? '▲' : '▼'}</span>
+        <span style={{ fontSize: '0.7rem', color: 'var(--ink-4)', flexShrink: 0 }}>{open ? '▲' : '▼'}</span>
       </button>
 
       {open && (
         <div style={{
-          position: 'absolute',
-          top: 'calc(100% + 4px)',
-          left: 0,
-          zIndex: 300,
-          background: '#fff',
-          border: '1px solid var(--cmu-border)',
-          borderRadius: 8,
-          boxShadow: '0 6px 24px rgba(0,0,0,0.12)',
-          minWidth: '100%',
-          maxHeight: 280,
-          display: 'flex',
-          flexDirection: 'column',
+          position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 300,
+          background: 'var(--surface)',
+          border: '1px solid var(--border-strong)',
+          borderRadius: 'var(--r-md)',
+          boxShadow: 'var(--shadow-lg)',
+          minWidth: '100%', maxHeight: 280,
+          display: 'flex', flexDirection: 'column',
         }}>
           {options.length > 6 && (
-            <div style={{ padding: '0.5rem 0.5rem 0' }}>
+            <div style={{ padding: '8px 8px 0' }}>
               <input
                 ref={inputRef}
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 placeholder="พิมพ์เพื่อค้นหา..."
-                style={{
-                  width: '100%',
-                  padding: '0.375rem 0.625rem',
-                  border: '1px solid var(--cmu-border)',
-                  borderRadius: 6,
-                  fontSize: '0.875rem',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                  fontFamily: 'inherit',
-                }}
+                className="input"
+                style={{ padding: '8px 10px', fontSize: 14 }}
               />
             </div>
           )}
           <ul
             ref={listRef}
             role="listbox"
-            style={{
-              margin: 0,
-              padding: '0.375rem 0',
-              listStyle: 'none',
-              overflowY: 'auto',
-              maxHeight: 220,
-            }}
+            style={{ margin: 0, padding: '6px 0', listStyle: 'none', overflowY: 'auto', maxHeight: 220 }}
           >
             {filtered.length === 0 ? (
-              <li style={{ padding: '0.5rem 0.75rem', color: 'var(--cmu-text-muted)', fontSize: '0.875rem' }}>
-                ไม่พบผลลัพธ์
-              </li>
+              <li style={{ padding: '8px 14px', color: 'var(--ink-4)', fontSize: 14 }}>ไม่พบผลลัพธ์</li>
             ) : (
               filtered.map((opt, i) => {
                 const isActive = opt.value === value
@@ -158,11 +128,11 @@ export function SearchableSelect({ options, value, onChange, placeholder = 'เ�
                     onClick={() => select(opt)}
                     onMouseEnter={() => setHighlighted(i)}
                     style={{
-                      padding: '0.4rem 0.75rem',
+                      padding: '8px 14px',
                       cursor: 'pointer',
-                      fontSize: '0.9375rem',
-                      background: isHighlighted || isActive ? 'rgba(90,50,150,0.07)' : 'transparent',
-                      color: isActive ? 'var(--cmu-primary)' : 'var(--cmu-text)',
+                      fontSize: 14,
+                      background: isHighlighted || isActive ? 'var(--bg-soft)' : 'transparent',
+                      color: isActive ? 'var(--brand-deep)' : 'var(--ink-2)',
                       fontWeight: isActive ? 600 : 400,
                     }}
                   >

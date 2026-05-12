@@ -7,6 +7,7 @@ export interface Course {
   name_en: string
   credits: number
   description: string
+  prerequisite: string
   faculty: Faculty
   avg_rating: number
   review_count: number
@@ -26,4 +27,5 @@ export interface CreateCoursePayload {
   credits: number
   faculty_id: number
   description: string
+  prerequisite?: string
 }

@@ -1,34 +1,40 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
+import { createPortal } from 'react-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import type { Course } from '@/types/course'
 import type { Faculty } from '@/types/faculty'
 import { fetchCourses, fetchFaculties } from '@/api/courses'
 import { CourseCard } from '@/components/CourseCard'
-import { SearchableSelect } from '@/components/SearchableSelect'
-import type { SelectOption } from '@/components/SearchableSelect'
-import { input as inputStyle } from '@/theme'
+import { CourseRow } from '@/components/CourseRow'
+import { IconSearch, IconPlus, IconGrid, IconList, IconMenu } from '@/components/Icons'
+import { CourseFilterPanel } from '@/components/CourseFilterPanel'
+import { useDataRefresh } from '@/context/DataRefreshContext'
 
 const LIMIT = 20
-
-const CREDITS_OPTIONS: SelectOption[] = [
-  { value: '', label: 'ทุกหน่วยกิต' },
-  ...[1, 2, 3, 4, 5, 6].map(c => ({ value: c, label: `${c} หน่วยกิต`, searchKeys: [String(c)] })),
-]
-
-const CATEGORY_OPTIONS: SelectOption[] = [
-  { value: '',                          label: 'ทุกหมวดหมู่' },
-  { value: 'หมวดวิชาบังคับ',           label: 'หมวดวิชาบังคับ' },
-  { value: 'หมวดวิชาเอกเลือก',         label: 'หมวดวิชาเอกเลือก' },
-  { value: 'หมวดวิชาเลือกทั่วไป',      label: 'หมวดวิชาเลือกทั่วไป (GE)' },
-  { value: 'หมวดวิชาฟรี',              label: 'หมวดวิชาฟรี' },
-]
-
-const SORT_OPTIONS: SelectOption[] = [
-  { value: 'code',    label: 'เรียงตามรหัส' },
-  { value: 'rating',  label: 'คะแนนสูงสุด' },
-  { value: 'reviews', label: 'รีวิวมากสุด' },
+const CREDITS = [1, 2, 3, 4, 5, 6]
+const CATEGORIES = [
+  'หมวดวิชาบังคับ',
+  'หมวดวิชาเอกเลือก',
+  'หมวดวิชาเลือกทั่วไป',
+  'หมวดวิชาฟรี',
 ]
 
 export function CourseListPage() {
+  const navigate = useNavigate()
+  const [params, setParams] = useSearchParams()
+  const { coursesV } = useDataRefresh()
+
+  const initialQuery = params.get('q') ?? ''
+  const initialFaculty = params.get('faculty') ?? ''
+
+  const [searchInput, setSearchInput] = useState(initialQuery)
+  const [query, setQuery] = useState(initialQuery)
+  const [facCode, setFacCode] = useState<string>(initialFaculty)
+  const [cats, setCats] = useState<string[]>([])
+  const [credits, setCredits] = useState<number[]>([])
+  const [sort, setSort] = useState<'rating' | 'reviews' | 'code'>('rating')
+  const [density, setDensity] = useState<'grid' | 'list'>('grid')
+
   const [courses, setCourses] = useState<Course[]>([])
   const [total, setTotal] = useState(0)
   const [offset, setOffset] = useState(0)
@@ -36,61 +42,61 @@ export function CourseListPage() {
   const [loading, setLoading] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [filterOpen, setFilterOpen] = useState(false)
 
-  const [searchInput, setSearchInput] = useState('')
-  const [filters, setFilters] = useState({ search: '', faculty: '', credits: 0, category: '', sort: 'code' })
-
+  // Lock body scroll while mobile filter open
   useEffect(() => {
-    fetchFaculties().then(setFaculties).catch(console.error)
-  }, [])
+    if (!filterOpen) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setFilterOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = prev
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [filterOpen])
 
-  const facultyOptions: SelectOption[] = [
-    { value: '', label: 'ทุกคณะ' },
-    ...faculties.map(f => ({
-      value: f.code,
-      label: f.name_th,
-      searchKeys: [f.name_en, f.code],
-    })),
-  ]
+  useEffect(() => { fetchFaculties().then(setFaculties).catch(console.error) }, [])
 
-  const loadInitial = useCallback(async (f: typeof filters) => {
-    setLoading(true)
-    setError(null)
+  const toggle = <T,>(arr: T[], v: T): T[] => (arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v])
+
+  // backend supports single faculty/category/credits, so use first selected
+  const apiFilters = useMemo(() => ({
+    search: query,
+    faculty: facCode,
+    credits: credits[0],
+    category: cats[0],
+    sort,
+  }), [query, facCode, credits, cats, sort])
+
+  const loadInitial = useCallback(async () => {
+    setLoading(true); setError(null)
     try {
-      const res = await fetchCourses({
-        search: f.search,
-        faculty: f.faculty,
-        credits: f.credits || undefined,
-        category: f.category || undefined,
-        sort: f.sort,
-        limit: LIMIT,
-        page: 1,
-      })
-      setCourses(res.data)
-      setTotal(res.total)
-      setOffset(res.data.length)
+      const res = await fetchCourses({ ...apiFilters, limit: LIMIT, page: 1 })
+      setCourses(res.data); setTotal(res.total); setOffset(res.data.length)
     } catch {
       setError('โหลดข้อมูลไม่สำเร็จ กรุณาลองใหม่')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [apiFilters])
 
-  useEffect(() => { loadInitial(filters) }, [filters, loadInitial])
+  useEffect(() => { loadInitial() }, [loadInitial, coursesV])
+
+  // sync URL
+  useEffect(() => {
+    const p = new URLSearchParams()
+    if (query) p.set('q', query)
+    if (facCode) p.set('faculty', facCode)
+    setParams(p, { replace: true })
+  }, [query, facCode, setParams])
 
   const loadMore = async () => {
     setLoadingMore(true)
     try {
       const page = Math.floor(offset / LIMIT) + 1
-      const res = await fetchCourses({
-        search: filters.search,
-        faculty: filters.faculty,
-        credits: filters.credits || undefined,
-        category: filters.category || undefined,
-        sort: filters.sort,
-        limit: LIMIT,
-        page,
-      })
+      const res = await fetchCourses({ ...apiFilters, limit: LIMIT, page })
       setCourses(prev => [...prev, ...res.data])
       setOffset(prev => prev + res.data.length)
     } catch {
@@ -100,121 +106,135 @@ export function CourseListPage() {
     }
   }
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
-    setFilters(f => ({ ...f, search: searchInput }))
-  }
+  const onSearchSubmit = (e: React.FormEvent) => { e.preventDefault(); setQuery(searchInput) }
+  const clearAll = () => { setFacCode(''); setCats([]); setCredits([]); setQuery(''); setSearchInput('') }
+  const activeFilterCount = (facCode ? 1 : 0) + cats.length + credits.length + (query ? 1 : 0)
 
   const hasMore = courses.length < total
 
+  const filterProps = {
+    faculties,
+    facCode,
+    cats,
+    credits,
+    categories: CATEGORIES,
+    creditOptions: CREDITS,
+    activeCount: activeFilterCount,
+    onSetFaculty: setFacCode,
+    onToggleCat: (c: string) => setCats(toggle(cats, c)),
+    onToggleCredit: (n: number) => setCredits(toggle(credits, n)),
+    onClear: () => { clearAll(); setFilterOpen(false) },
+    onClose: () => setFilterOpen(false),
+  }
+
   return (
-    <div>
-      <div style={{ marginBottom: '1.25rem' }}>
-        <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: 'var(--cmu-primary)', lineHeight: 1.25 }}>
-          รีวิววิชาเรียน มช.
-        </h1>
-        <p style={{ margin: '0.25rem 0 0', fontSize: '0.9375rem', color: 'var(--cmu-text-muted)', lineHeight: 1.5 }}>
-          ค้นหาและอ่านรีวิวจากรุ่นพี่ก่อนลงทะเบียน
-        </p>
-      </div>
-
-      <form onSubmit={handleSearch} className="filter-bar">
-        <input
-          value={searchInput}
-          onChange={e => setSearchInput(e.target.value)}
-          placeholder="ค้นหาชื่อวิชา หรือรหัสวิชา..."
-          className="filter-search"
-          style={{ ...inputStyle, fontSize: '0.9375rem' }}
-        />
-        <SearchableSelect
-          options={facultyOptions}
-          value={filters.faculty}
-          onChange={v => setFilters(f => ({ ...f, faculty: String(v) }))}
-          placeholder="ทุกคณะ"
-        />
-        <SearchableSelect
-          options={CREDITS_OPTIONS}
-          value={filters.credits || ''}
-          onChange={v => setFilters(f => ({ ...f, credits: Number(v) }))}
-          placeholder="ทุกหน่วยกิต"
-        />
-        <SearchableSelect
-          options={CATEGORY_OPTIONS}
-          value={filters.category}
-          onChange={v => setFilters(f => ({ ...f, category: String(v) }))}
-          placeholder="ทุกหมวดหมู่"
-        />
-        <SearchableSelect
-          options={SORT_OPTIONS}
-          value={filters.sort}
-          onChange={v => setFilters(f => ({ ...f, sort: String(v) }))}
-          placeholder="เรียงตามรหัส"
-        />
-        <button type="submit" style={{
-          padding: '0.5rem 1.125rem',
-          background: 'var(--cmu-primary)',
-          color: '#fff',
-          border: 'none',
-          borderRadius: 8,
-          cursor: 'pointer',
-          fontWeight: 700,
-          fontSize: '0.9375rem',
-        }}>
-          ค้นหา
-        </button>
-      </form>
-
-      {!loading && (
-        <p style={{ fontSize: '0.875rem', color: 'var(--cmu-text-muted)', marginBottom: '0.75rem' }}>
-          พบ <strong style={{ color: 'var(--cmu-primary)' }}>{total}</strong> วิชา
-        </p>
-      )}
-
-      {error && (
-        <div style={{ color: 'var(--cmu-error)', marginBottom: '0.75rem', fontWeight: 600, fontSize: '0.9375rem' }}>{error}</div>
-      )}
-
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--cmu-text-muted)', fontSize: '0.9375rem' }}>กำลังโหลด...</div>
-      ) : courses.length === 0 ? (
-        <div style={{
-          textAlign: 'center', padding: '3rem 1rem',
-          color: 'var(--cmu-text-muted)',
-          fontSize: '0.9375rem',
-          background: '#fff',
-          borderRadius: 12,
-          border: '1px solid rgba(180,140,220,0.30)',
-        }}>
-          ไม่พบวิชาที่ตรงกับการค้นหา
-        </div>
-      ) : (
+    <div className="fade-in shell">
+      {createPortal(
         <>
-          <div className="course-grid">
-            {courses.map(c => <CourseCard key={c.id} course={c} />)}
+          <div
+            className={`filter-overlay ${filterOpen ? 'is-open' : ''}`}
+            onClick={() => setFilterOpen(false)}
+            aria-hidden="true"
+          />
+          {/* mobile drawer — body-mounted so no ancestor can constrain fixed positioning */}
+          <CourseFilterPanel {...filterProps} open={filterOpen} variant="drawer" />
+        </>,
+        document.body,
+      )}
+
+      <div className="results-layout">
+        {/* desktop inline panel — CSS hides on ≤1024 */}
+        <CourseFilterPanel {...filterProps} open={true} variant="inline" />
+
+        <div>
+          <button
+            className="filter-burger"
+            onClick={() => setFilterOpen(true)}
+            aria-label="เปิดตัวกรอง"
+            aria-expanded={filterOpen}
+            type="button"
+          >
+            <IconMenu />
+            <span>ตัวกรอง</span>
+            {activeFilterCount > 0 && (
+              <span className="filter-burger-badge">{activeFilterCount}</span>
+            )}
+          </button>
+
+          <form onSubmit={onSearchSubmit} style={{ marginBottom: 18 }}>
+            <div className="search-hero" style={{ padding: '6px 6px 6px 18px', boxShadow: 'var(--shadow-sm)' }}>
+              <IconSearch width="18" height="18" />
+              <input
+                placeholder="ค้นหารหัสวิชา / ชื่อวิชา"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+              />
+              {searchInput && (
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setSearchInput(''); setQuery('') }}>ล้าง</button>
+              )}
+              <button type="submit" className="btn btn-primary btn-sm">ค้นหา</button>
+            </div>
+          </form>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, flexWrap: 'wrap', gap: 12 }}>
+            <div>
+              <div className="h-2">พบ {total} วิชา</div>
+              <div className="caption" style={{ marginTop: 4 }}>
+                {query ? <>คำค้น "<b style={{ color: 'var(--ink-2)' }}>{query}</b>"</> : 'ทุกวิชาในระบบ'}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div className="seg">
+                <button className={sort === 'rating' ? 'is-active' : ''} onClick={() => setSort('rating')}>คะแนน</button>
+                <button className={sort === 'reviews' ? 'is-active' : ''} onClick={() => setSort('reviews')}>รีวิว</button>
+                <button className={sort === 'code' ? 'is-active' : ''} onClick={() => setSort('code')}>รหัส</button>
+              </div>
+              <div className="seg">
+                <button className={density === 'grid' ? 'is-active' : ''} onClick={() => setDensity('grid')} title="แบบการ์ด"><IconGrid /></button>
+                <button className={density === 'list' ? 'is-active' : ''} onClick={() => setDensity('list')} title="แบบรายการ"><IconList /></button>
+              </div>
+            </div>
           </div>
 
-          {hasMore && (
-            <div style={{ textAlign: 'center', marginTop: '1.25rem' }}>
-              <button
-                onClick={loadMore}
-                disabled={loadingMore}
-                style={{
-                  padding: '0.625rem 2rem',
-                  background: loadingMore ? 'var(--cmu-bg)' : 'var(--cmu-bg-card)',
-                  color: loadingMore ? 'var(--cmu-text-muted)' : 'var(--cmu-primary)',
-                  border: '1px solid var(--cmu-border-strong)',
-                  borderRadius: 8,
-                  cursor: loadingMore ? 'not-allowed' : 'pointer',
-                  fontWeight: 700,
-                  fontSize: '0.9375rem',
-                }}
-              >
+          {error && (
+            <div style={{ color: 'var(--accent-rose)', fontWeight: 600, marginBottom: 12 }}>{error}</div>
+          )}
+
+          {loading ? (
+            <div className="empty-state">กำลังโหลด...</div>
+          ) : courses.length === 0 ? (
+            <div className="empty-state card">
+              <div style={{ fontSize: 38, marginBottom: 10 }}>🔍</div>
+              <div className="h-3" style={{ marginBottom: 6 }}>ไม่พบวิชาที่ค้นหา</div>
+              <div className="body-sm" style={{ marginBottom: 18 }}>ลองปรับคำค้น หรือถ้ายังไม่มีในระบบ ช่วยกันเพิ่มได้</div>
+              <button className="btn btn-primary" onClick={() => navigate('/courses/new')}>
+                <IconPlus /> เพิ่มวิชาใหม่
+              </button>
+            </div>
+          ) : density === 'grid' ? (
+            <div className="result-grid">
+              {courses.map(c => <CourseCard key={c.id} course={c} />)}
+            </div>
+          ) : (
+            <div className="result-list">
+              {courses.map((c, i) => (
+                <div key={c.id}>
+                  {i > 0 && <hr />}
+                  <CourseRow course={c} />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {hasMore && !loading && (
+            <div style={{ textAlign: 'center', marginTop: 20 }}>
+              <button className="btn btn-ghost" onClick={loadMore} disabled={loadingMore}>
                 {loadingMore ? 'กำลังโหลด...' : `โหลดเพิ่ม (${total - courses.length} วิชา)`}
               </button>
             </div>
           )}
-        </>
-      )}
+        </div>
+      </div>
     </div>
   )
 }

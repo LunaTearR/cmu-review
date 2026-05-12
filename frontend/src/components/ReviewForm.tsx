@@ -1,58 +1,63 @@
-import { useState } from "react";
-import type { CreateReviewPayload } from "@/types/review";
-import { Rating } from "./Rating";
-import { ApiError } from "@/api/client";
-import { input as inputStyle } from "@/theme";
+import { useState } from 'react'
+import type { CreateReviewPayload } from '@/types/review'
+import { Rating } from './Rating'
+import { ApiError } from '@/api/client'
+import { IconCheck } from './Icons'
 
 interface Props {
-  courseId: number;
-  onSubmit: (payload: CreateReviewPayload) => Promise<void>;
+  courseId: number
+  onSubmit: (payload: CreateReviewPayload) => Promise<void>
+  onCancel?: () => void
 }
 
-const GRADES = ["A", "B+", "B", "C+", "C", "D+", "D", "F", "W", ""];
-const CURRENT_YEAR = new Date().getFullYear() + 543;
+const GRADES = ['A', 'B+', 'B', 'C+', 'C', 'D+', 'D', 'F', 'W']
+const CURRENT_YEAR = new Date().getFullYear() + 543
 
-const field: React.CSSProperties = {
-  display: "block",
-  marginBottom: "0.25rem",
-  fontWeight: 700,
-  fontSize: "0.875rem",
-  color: "var(--cmu-text-sub)",
-};
-const selectStyle: React.CSSProperties = { ...inputStyle, width: "auto" };
+const RATING_LABELS: Record<number, string> = {
+  1: 'ไม่แนะนำเลย',
+  2: 'ค่อนข้างไม่แนะนำ',
+  3: 'เฉยๆ',
+  4: 'แนะนำ',
+  5: 'แนะนำมาก',
+}
 
-export function ReviewForm({ courseId: _courseId, onSubmit }: Props) {
-  const [rating, setRating] = useState(0);
-  const [grade, setGrade] = useState("");
-  const [academicYear, setAcademicYear] = useState(CURRENT_YEAR);
-  const [semester, setSemester] = useState(1);
-  const [content, setContent] = useState("");
-  const [programPreset, setProgramPreset] = useState("");
-  const [programCustom, setProgramCustom] = useState("");
-  const program = programPreset === "อื่นๆ" ? programCustom : programPreset;
-  const [categoryPreset, setCategoryPreset] = useState("");
-  const [categoryCustom, setCategoryCustom] = useState("");
-  const category = categoryPreset === "อื่นๆ" ? categoryCustom : categoryPreset;
-  const [professor, setProfessor] = useState("");
-  const [reviewerName, setReviewerName] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+const PROGRAMS = ['ปกติ', 'พิเศษ', 'นานาชาติ', 'อื่นๆ']
+const CATEGORIES = [
+  'หมวดวิชาบังคับ',
+  'หมวดวิชาเอกเลือก',
+  'หมวดวิชาเลือกทั่วไป',
+  'หมวดวิชาฟรี',
+  'อื่นๆ',
+]
+
+export function ReviewForm({ courseId: _courseId, onSubmit, onCancel }: Props) {
+  const [rating, setRating] = useState(0)
+  const [grade, setGrade] = useState('')
+  const [academicYear, setAcademicYear] = useState(CURRENT_YEAR)
+  const [semester, setSemester] = useState(1)
+  const [content, setContent] = useState('')
+  const [program, setProgram] = useState('ปกติ')
+  const [programCustom, setProgramCustom] = useState('')
+  const [category, setCategory] = useState('')
+  const [categoryCustom, setCategoryCustom] = useState('')
+  const [professor, setProfessor] = useState('')
+  const [reviewerName, setReviewerName] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
+
+  const programValue = program === 'อื่นๆ' ? programCustom : program
+  const categoryValue = category === 'อื่นๆ' ? categoryCustom : category
+  const filled = rating > 0 && grade && professor && content.trim().length >= 30 && categoryValue
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
+    e.preventDefault()
+    setError(null)
 
-    if (rating === 0) {
-      setError("กรุณาให้คะแนนดาว");
-      return;
-    }
-    if (content.trim().length < 10) {
-      setError("รีวิวต้องมีอย่างน้อย 10 ตัวอักษร");
-      return;
-    }
+    if (!rating) return setError('กรุณาให้คะแนนหัวใจ')
+    if (content.trim().length < 30) return setError('รีวิวต้องมีอย่างน้อย 30 ตัวอักษร')
 
-    setLoading(true);
+    setLoading(true)
     try {
       await onSubmit({
         rating,
@@ -60,220 +65,143 @@ export function ReviewForm({ courseId: _courseId, onSubmit }: Props) {
         academic_year: academicYear,
         semester,
         content: content.trim(),
-        program,
-        category,
+        program: programValue,
+        category: categoryValue,
         professor,
         reviewer_name: reviewerName.trim() || undefined,
-      });
-      setSuccess(true);
-      setRating(0);
-      setGrade("");
-      setContent("");
-      setProgramPreset("");
-      setProgramCustom("");
-      setCategoryPreset("");
-      setCategoryCustom("");
+      })
+      setSuccess(true)
     } catch (err) {
       if (err instanceof ApiError) {
-        if (err.status === 409) setError("คุณได้รีวิววิชานี้ในเทอมนี้แล้ว");
-        else if (err.status === 429)
-          setError("ส่งรีวิวบ่อยเกินไป กรุณารอสักครู่");
-        else setError(err.message);
+        if (err.status === 409) setError('คุณได้รีวิววิชานี้ในเทอมนี้แล้ว')
+        else if (err.status === 429) setError('ส่งรีวิวบ่อยเกินไป กรุณารอสักครู่')
+        else setError(err.message)
       } else {
-        setError("เกิดข้อผิดพลาด กรุณาลองใหม่");
+        setError('เกิดข้อผิดพลาด กรุณาลองใหม่')
       }
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   if (success) {
     return (
-      <div
-        style={{
-          padding: "1rem",
-          background: "var(--cmu-success-bg)",
-          borderRadius: 8,
-          border: "1px solid var(--cmu-success-border)",
-          color: "var(--cmu-success)",
-          fontWeight: 600,
-        }}
-      >
-        ขอบคุณสำหรับรีวิว!{" "}
-        <button
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            color: "var(--cmu-success)",
-            textDecoration: "underline",
-            fontWeight: 600,
-          }}
-          onClick={() => setSuccess(false)}
-        >
-          รีวิวอีกครั้ง
-        </button>
+      <div className="card card-pad" style={{ background: 'var(--brand-tint)', color: 'var(--brand-ink)', borderColor: 'var(--border-strong)' }}>
+        <div className="h-3" style={{ marginBottom: 6 }}>ขอบคุณสำหรับรีวิว</div>
+        <div className="body-sm" style={{ color: 'var(--brand-ink)' }}>รุ่นน้องจะได้ประโยชน์มาก</div>
       </div>
-    );
+    )
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}
-    >
-      <div>
-        <label style={field}>แนะนำให้คนอื่นลงเรียนไหม?</label>
-        <Rating value={rating} onChange={setRating} />
-      </div>
-
-      <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-        <div>
-          <label style={field}>เกรดที่ได้</label>
-          <select
-            value={grade}
-            onChange={(e) => setGrade(e.target.value)}
-            style={selectStyle}
-          >
-            {GRADES.map((g) => (
-              <option key={g} value={g}>
-                {g || "— ไม่ระบุ —"}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label style={field}>ปีการศึกษา *</label>
-          <input
-            type="number"
-            value={academicYear}
-            min={2560}
-            max={CURRENT_YEAR}
-            onChange={(e) => setAcademicYear(Number(e.target.value))}
-            style={{ ...inputStyle, width: 100 }}
-          />
-        </div>
-        <div>
-          <label style={field}>ภาคเรียน *</label>
-          <select
-            value={semester}
-            onChange={(e) => setSemester(Number(e.target.value))}
-            style={selectStyle}
-          >
-            <option value={1}>1 (เทอมแรก)</option>
-            <option value={2}>2 (เทอมสอง)</option>
-            <option value={3}>3 (ซัมเมอร์)</option>
-          </select>
-        </div>
-        <div>
-          <label style={field}>ประเภทหลักสูตร</label>
-          <select
-            value={programPreset}
-            onChange={(e) => setProgramPreset(e.target.value)}
-            style={selectStyle}
-          >
-            <option value="">— ไม่ระบุ —</option>
-            <option value="ภาคปกติ">ภาคปกติ</option>
-            <option value="ภาคพิเศษ">ภาคพิเศษ</option>
-            <option value="นานาชาติ">นานาชาติ</option>
-            <option value="อื่นๆ">อื่นๆ</option>
-          </select>
-          {programPreset === "อื่นๆ" && (
-            <input
-              type="text"
-              value={programCustom}
-              onChange={(e) => setProgramCustom(e.target.value)}
-              placeholder="ระบุประเภทหลักสูตร"
-              style={{ ...inputStyle, marginTop: "0.25rem" }}
-            />
-          )}
-        </div>
-        <div>
-          <label style={field}>หมวดหมู่</label>
-          <select
-            value={categoryPreset}
-            onChange={(e) => setCategoryPreset(e.target.value)}
-            style={selectStyle}
-          >
-            <option value="">— ไม่ระบุ —</option>
-            <option value="หมวดวิชาบังคับ">หมวดวิชาบังคับ</option>
-            <option value="หมวดวิชาเอกเลือก">หมวดวิชาเอกเลือก</option>
-            <option value="หมวดวิชาเลือกทั่วไป">หมวดวิชาเลือกทั่วไป(GE)</option>
-            <option value="หมวดวิชาฟรี">หมวดวิชาฟรี</option>
-            <option value="อื่นๆ">อื่นๆ</option>
-          </select>
-          {categoryPreset === "อื่นๆ" && (
-            <input
-              type="text"
-              value={categoryCustom}
-              onChange={(e) => setCategoryCustom(e.target.value)}
-              placeholder="หมวดหมู่ (เช่น หมวดวิชาบังคับ, หมวดวิชาเอกเลือก, หมวดวิชาฟรี)"
-              style={{ ...inputStyle, marginTop: "0.25rem" }}
-            />
-          )}
-        </div>
-        <div>
-          <label style={field}>อาจารย์ผู้สอน</label>
-          <input
-            value={professor}
-            onChange={(e) => setProfessor(e.target.value)}
-            placeholder="ชื่ออาจารย์ผู้สอน (ถ้ามากกว่าหนึ่งคน ให้คั่นด้วย ,)"
-            style={inputStyle}
-          />
-        </div>
-        <div>
-          <label style={field}>ชื่อที่แสดง (ไม่บังคับ)</label>
-          <input
-            value={reviewerName}
-            onChange={(e) => setReviewerName(e.target.value)}
-            maxLength={100}
-            placeholder="เช่น นักศึกษาปี 2, นิรนาม, ..."
-            style={inputStyle}
-          />
+    <form onSubmit={handleSubmit}>
+      <div className="form-section">
+        <div className="form-section-title">ภาพรวม</div>
+        <div className="field" style={{ alignItems: 'center', textAlign: 'center', background: 'var(--bg-soft)', padding: 28, borderRadius: 'var(--r-lg)' }}>
+          <label className="field-label" style={{ marginBottom: 4 }}>แนะนำให้คนอื่นลงเรียนไหม <span className="req">*</span></label>
+          <div style={{ marginTop: 6 }}>
+            <Rating value={rating} onChange={setRating} />
+          </div>
+          <div className="body-sm" style={{ marginTop: 10, minHeight: 22, fontWeight: 600, color: 'var(--brand-deep)' }}>
+            {rating ? RATING_LABELS[rating] : 'แตะหัวใจเพื่อให้คะแนน'}
+          </div>
         </div>
       </div>
 
-      <div>
-        <label style={field}>รีวิว * ({content.length}/2000)</label>
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          rows={5}
-          maxLength={2000}
-          placeholder="เขียนรีวิววิชานี้ เช่น เนื้อหา ความยาก ความสนุก ประโยชน์ที่ได้รับ..."
-          style={{ ...inputStyle, resize: "vertical" }}
-        />
+      <div className="form-section">
+        <div className="form-section-title">บริบทตอนเรียน</div>
+        <div className="form-stack">
+          <div className="form-row-3">
+            <div className="field">
+              <label className="field-label">เกรดที่ได้ <span className="req">*</span></label>
+              <select className="input" value={grade} onChange={(e) => setGrade(e.target.value)}>
+                <option value="">— เลือก —</option>
+                {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
+            </div>
+            <div className="field">
+              <label className="field-label">ปีการศึกษา</label>
+              <input className="input" type="number" min={2560} max={CURRENT_YEAR} value={academicYear} onChange={(e) => setAcademicYear(Number(e.target.value))} />
+            </div>
+            <div className="field">
+              <label className="field-label">ภาคเรียน</label>
+              <select className="input" value={semester} onChange={(e) => setSemester(Number(e.target.value))}>
+                <option value={1}>ภาค 1</option>
+                <option value={2}>ภาค 2</option>
+                <option value={3}>ภาคฤดูร้อน</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="field">
+              <label className="field-label">ประเภทหลักสูตร</label>
+              <div className="seg" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)' }}>
+                {PROGRAMS.map(p => (
+                  <button key={p} type="button" className={program === p ? 'is-active' : ''} onClick={() => setProgram(p)}>{p}</button>
+                ))}
+              </div>
+              {program === 'อื่นๆ' && (
+                <input className="input" style={{ marginTop: 8 }} placeholder="ระบุประเภทหลักสูตร" value={programCustom} onChange={(e) => setProgramCustom(e.target.value)} />
+              )}
+            </div>
+            <div className="field">
+              <label className="field-label">หมวดหมู่วิชา <span className="req">*</span></label>
+              <select className="input" value={category} onChange={(e) => setCategory(e.target.value)}>
+                <option value="">— เลือก —</option>
+                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              {category === 'อื่นๆ' && (
+                <input className="input" style={{ marginTop: 8 }} placeholder="ระบุหมวดหมู่" value={categoryCustom} onChange={(e) => setCategoryCustom(e.target.value)} />
+              )}
+            </div>
+          </div>
+
+          <div className="field">
+            <label className="field-label">อาจารย์ผู้สอน <span className="req">*</span></label>
+            <input className="input" placeholder="เช่น ผศ.ดร.ภัทรชนน วงศ์เกียรติ" value={professor} onChange={(e) => setProfessor(e.target.value)} />
+          </div>
+
+          <div className="field">
+            <label className="field-label">ชื่อเล่นผู้รีวิว</label>
+            <input className="input" placeholder='ใส่ชื่อเล่นได้ ไม่ใส่ก็ได้ (จะแสดงเป็น "นักศึกษาไม่เปิดเผยชื่อ")' value={reviewerName} onChange={(e) => setReviewerName(e.target.value)} maxLength={100} />
+          </div>
+        </div>
+      </div>
+
+      <div className="form-section">
+        <div className="form-section-title">รีวิวยาว · สำคัญที่สุด</div>
+        <div className="field">
+          <label className="field-label">เล่าประสบการณ์ของคุณให้รุ่นน้องฟัง <span className="req">*</span></label>
+          <textarea
+            className="input textarea"
+            style={{ minHeight: 220, fontSize: 16, lineHeight: 1.8 }}
+            placeholder={'ลองเล่า:\n• เนื้อหาเรียนอะไรบ้าง\n• อาจารย์สอนเป็นยังไง\n• งาน/สอบหนักไหม\n• เคล็ดลับเอาตัวรอด\n• เหมาะกับใคร'}
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            maxLength={2000}
+          />
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span className="field-hint">เขียนอย่างน้อย 30 ตัวอักษร — ยิ่งเล่ารายละเอียดยิ่งช่วยรุ่นน้อง</span>
+            <span className="caption mono" style={{ color: content.length >= 30 ? 'var(--accent-mint)' : 'var(--ink-4)' }}>
+              {content.length}{content.length >= 30 ? ' ✓' : ''}
+            </span>
+          </div>
+        </div>
       </div>
 
       {error && (
-        <div
-          style={{
-            color: "var(--cmu-error)",
-            fontSize: "0.875rem",
-            fontWeight: 600,
-          }}
-        >
-          {error}
-        </div>
+        <div style={{ color: 'var(--accent-rose)', fontSize: 14, fontWeight: 600, marginTop: 12 }}>{error}</div>
       )}
 
-      <button
-        type="submit"
-        disabled={loading}
-        style={{
-          padding: "0.625rem 1.5rem",
-          background: loading ? "var(--cmu-text-muted)" : "var(--cmu-primary)",
-          color: "#fff",
-          border: "none",
-          borderRadius: 8,
-          cursor: loading ? "not-allowed" : "pointer",
-          fontWeight: 700,
-          alignSelf: "flex-start",
-          transition: "background 0.15s",
-        }}
-      >
-        {loading ? "กำลังส่ง..." : "ส่งรีวิว"}
-      </button>
+      <div className="form-actions">
+        {onCancel && (
+          <button type="button" className="btn btn-ghost btn-lg" onClick={onCancel}>ยกเลิก</button>
+        )}
+        <button type="submit" className="btn btn-primary btn-lg" disabled={loading || !filled}>
+          <IconCheck /> {loading ? 'กำลังโพสต์...' : 'โพสต์รีวิว'}
+        </button>
+      </div>
     </form>
-  );
+  )
 }

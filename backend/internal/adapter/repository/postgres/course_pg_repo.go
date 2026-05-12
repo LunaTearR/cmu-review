@@ -40,11 +40,11 @@ func (r *coursePgRepo) Exists(ctx context.Context, id int) (bool, error) {
 func (r *coursePgRepo) Create(ctx context.Context, c *entity.Course) (*entity.Course, error) {
 	const q = `
 		WITH inserted AS (
-			INSERT INTO courses (course_id, name_th, name_en, credits, faculty_id, description)
-			VALUES ($1, $2, $3, $4, $5, $6)
-			RETURNING id, course_id, name_th, name_en, credits, faculty_id, description
+			INSERT INTO courses (course_id, name_th, name_en, credits, faculty_id, description, prerequisite)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)
+			RETURNING id, course_id, name_th, name_en, credits, faculty_id, description, prerequisite
 		)
-		SELECT i.id, i.course_id, i.name_th, i.name_en, i.credits, i.description,
+		SELECT i.id, i.course_id, i.name_th, i.name_en, i.credits, i.description, i.prerequisite,
 		       i.faculty_id, f.id, f.code, f.name_th, f.name_en,
 		       0.0::float8 AS avg_rating, 0::int AS review_count
 		FROM inserted i
@@ -52,9 +52,9 @@ func (r *coursePgRepo) Create(ctx context.Context, c *entity.Course) (*entity.Co
 
 	out := &entity.Course{}
 	err := r.db.QueryRowContext(ctx, q,
-		c.CourseCode, c.NameTH, c.NameEN, c.Credits, c.FacultyID, c.Description,
+		c.CourseCode, c.NameTH, c.NameEN, c.Credits, c.FacultyID, c.Description, c.Prerequisite,
 	).Scan(
-		&out.ID, &out.CourseCode, &out.NameTH, &out.NameEN, &out.Credits, &out.Description,
+		&out.ID, &out.CourseCode, &out.NameTH, &out.NameEN, &out.Credits, &out.Description, &out.Prerequisite,
 		&out.FacultyID, &out.Faculty.ID, &out.Faculty.Code, &out.Faculty.NameTH, &out.Faculty.NameEN,
 		&out.AvgRating, &out.ReviewCount,
 	)
@@ -105,7 +105,7 @@ func (r *coursePgRepo) List(ctx context.Context, opts repository.CourseListOpts)
 	}
 
 	q := `
-		SELECT c.id, c.course_id, c.name_th, c.name_en, c.credits, c.description,
+		SELECT c.id, c.course_id, c.name_th, c.name_en, c.credits, c.description, c.prerequisite,
 		       c.faculty_id, f.id, f.code, f.name_th, f.name_en,
 		       COALESCE(AVG(rv.rating) FILTER (WHERE NOT rv.is_hidden), 0) AS avg_rating,
 		       COUNT(rv.id) FILTER (WHERE NOT rv.is_hidden) AS review_count
@@ -130,7 +130,7 @@ func (r *coursePgRepo) List(ctx context.Context, opts repository.CourseListOpts)
 	for rows.Next() {
 		var c entity.Course
 		if err := rows.Scan(
-			&c.ID, &c.CourseCode, &c.NameTH, &c.NameEN, &c.Credits, &c.Description,
+			&c.ID, &c.CourseCode, &c.NameTH, &c.NameEN, &c.Credits, &c.Description, &c.Prerequisite,
 			&c.FacultyID, &c.Faculty.ID, &c.Faculty.Code, &c.Faculty.NameTH, &c.Faculty.NameEN,
 			&c.AvgRating, &c.ReviewCount,
 		); err != nil {
@@ -143,7 +143,7 @@ func (r *coursePgRepo) List(ctx context.Context, opts repository.CourseListOpts)
 
 func (r *coursePgRepo) GetByID(ctx context.Context, id int) (*entity.Course, error) {
 	const q = `
-		SELECT c.id, c.course_id, c.name_th, c.name_en, c.credits, c.description,
+		SELECT c.id, c.course_id, c.name_th, c.name_en, c.credits, c.description, c.prerequisite,
 		       c.faculty_id, f.id, f.code, f.name_th, f.name_en,
 		       COALESCE(AVG(rv.rating) FILTER (WHERE NOT rv.is_hidden), 0) AS avg_rating,
 		       COUNT(rv.id) FILTER (WHERE NOT rv.is_hidden) AS review_count
@@ -155,7 +155,7 @@ func (r *coursePgRepo) GetByID(ctx context.Context, id int) (*entity.Course, err
 
 	out := &entity.Course{}
 	err := r.db.QueryRowContext(ctx, q, id).Scan(
-		&out.ID, &out.CourseCode, &out.NameTH, &out.NameEN, &out.Credits, &out.Description,
+		&out.ID, &out.CourseCode, &out.NameTH, &out.NameEN, &out.Credits, &out.Description, &out.Prerequisite,
 		&out.FacultyID, &out.Faculty.ID, &out.Faculty.Code, &out.Faculty.NameTH, &out.Faculty.NameEN,
 		&out.AvgRating, &out.ReviewCount,
 	)
