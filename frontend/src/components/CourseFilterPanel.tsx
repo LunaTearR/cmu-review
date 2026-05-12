@@ -3,7 +3,7 @@ import { IconFilter, IconClose } from './Icons'
 
 interface Props {
   faculties: Faculty[]
-  facCodes: string[]
+  facCode: string
   cats: string[]
   credits: number[]
   categories: string[]
@@ -11,7 +11,7 @@ interface Props {
   activeCount: number
   open: boolean
   variant?: 'inline' | 'drawer'
-  onToggleFaculty: (code: string) => void
+  onSelectFaculty: (code: string) => void
   onToggleCat: (cat: string) => void
   onToggleCredit: (n: number) => void
   onClear: () => void
@@ -19,8 +19,8 @@ interface Props {
 }
 
 export function CourseFilterPanel({
-  faculties, facCodes, cats, credits, categories, creditOptions, activeCount, open, variant = 'inline',
-  onToggleFaculty, onToggleCat, onToggleCredit, onClear, onClose,
+  faculties, facCode, cats, credits, categories, creditOptions, activeCount, open, variant = 'inline',
+  onSelectFaculty, onToggleCat, onToggleCredit, onClear, onClose,
 }: Props) {
   const variantClass = variant === 'drawer' ? 'is-drawer' : 'is-inline'
   return (
@@ -61,14 +61,22 @@ export function CourseFilterPanel({
         ))}
       </div>
 
-      <div className="filter-group">
-        <div className="filter-group-label">คณะ</div>
+      <div className="filter-group" role="radiogroup" aria-label="คณะ">
+        <div className="filter-group-label">คณะ (เลือกได้ 1)</div>
         <div className="fac-scroll" style={{ maxHeight: 260, overflowY: 'auto', marginRight: -6, paddingRight: 6 }}>
           {faculties.map(f => {
-            const on = facCodes.includes(f.code)
+            const on = facCode === f.code
             return (
-              <div key={f.id} className="checkbox-row" onClick={() => onToggleFaculty(f.code)}>
-                <span className={`cbox ${on ? 'is-on' : ''}`} />
+              <div
+                key={f.id}
+                className={`radio-row ${on ? 'is-on' : ''}`}
+                onClick={() => onSelectFaculty(f.code)}
+                role="radio"
+                aria-checked={on}
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectFaculty(f.code) } }}
+              >
+                <span className={`rbox ${on ? 'is-on' : ''}`} />
                 <span className="truncate" style={{ flex: 1 }}>{f.name_th}</span>
               </div>
             )

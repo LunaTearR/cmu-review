@@ -139,11 +139,16 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
   backdrop-filter: blur(14px) saturate(140%);
   -webkit-backdrop-filter: blur(14px) saturate(140%);
   border-bottom: 1px solid var(--border);
+  overflow-x: clip;
 }
 .nav-inner {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 0; gap: 24px;
+  padding-block: 14px; gap: 24px;
+  min-width: 0; flex-wrap: nowrap;
 }
+.nav-inner > .brand { min-width: 0; flex-shrink: 1; }
+.nav-inner > .brand .brand-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-actions { flex-shrink: 0; }
 .brand {
   display: flex; align-items: center; gap: 10px;
   cursor: pointer; user-select: none;
@@ -701,6 +706,37 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
   transform: rotate(-45deg) translateY(-1px);
 }
 
+/* radio-row: single-select variant of checkbox-row */
+.radio-row {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 10px; cursor: pointer;
+  color: var(--ink-2); font-size: 14px;
+  border-radius: var(--r-md);
+  border: 1px solid transparent;
+  transition: background 0.14s var(--t-easing), color 0.14s var(--t-easing), border-color 0.14s var(--t-easing);
+}
+.radio-row:hover { color: var(--ink-1); background: var(--bg-soft); }
+.radio-row:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.radio-row.is-on {
+  background: var(--brand-tint);
+  border-color: var(--brand-soft);
+  color: var(--brand-deep);
+  font-weight: 600;
+}
+.rbox {
+  width: 17px; height: 17px; border-radius: 50%;
+  border: 1.5px solid var(--border-strong);
+  display: grid; place-items: center;
+  background: var(--surface);
+  flex-shrink: 0;
+  transition: all 0.14s var(--t-easing);
+}
+.rbox.is-on { border-color: var(--brand-deep); border-width: 2px; }
+.rbox.is-on::after {
+  content: ""; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--brand-deep);
+}
+
 /* result grid */
 .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 .result-list { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 8px; }
@@ -737,7 +773,7 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
   display: grid;
   grid-template-columns: 1fr 320px;
   gap: 40px;
-  padding: 40px 0 80px;
+  padding-block: 40px 80px;
 }
 .detail-sticky { position: sticky; top: 84px; display: flex; flex-direction: column; gap: 14px; }
 .stat-card {
@@ -887,11 +923,11 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 /* Tablet (≤ 1024px): collapse 2-col layouts + filter becomes drawer */
 @media (max-width: 1024px) {
   .results-layout { grid-template-columns: 1fr; gap: 24px; }
-  .detail-layout  { grid-template-columns: 1fr; gap: 28px; padding: 32px 0 60px; }
+  .detail-layout  { grid-template-columns: 1fr; gap: 28px; padding-block: 32px 60px; }
   .detail-sticky  { position: static; flex-direction: row; flex-wrap: wrap; }
   .detail-sticky > * { flex: 1 1 240px; }
   .form-row, .form-row-3 { grid-template-columns: 1fr; }
-  .nav-search-mini { min-width: 160px; }
+  .nav-search-mini { min-width: 0; flex: 0 1 200px; }
 
   /* Burger toggle visible */
   .filter-burger { display: inline-flex; }
@@ -951,7 +987,8 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 
 /* Small tablet / large mobile (≤ 768px) */
 @media (max-width: 768px) {
-  .shell, .shell-narrow { padding: 0 20px; }
+  .shell, .shell-narrow { padding: 0 28px; }
+  .nav-search-mini { display: none; }
   .hero { padding: 64px 0 48px; }
   .hero-title { font-size: 44px; }
   .hero-sub { font-size: 16px; margin-bottom: 28px; }
@@ -980,8 +1017,8 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 
 /* Mobile (≤ 480px) */
 @media (max-width: 480px) {
-  .shell, .shell-narrow { padding: 0 14px; }
-  .nav-inner { padding: 10px 0; gap: 8px; }
+  .shell, .shell-narrow { padding: 0 22px; }
+  .nav-inner { padding-block: 10px; gap: 8px; }
 
   /* Burger compact at very small */
   .filter-burger { padding: 9px 12px; }
@@ -1028,7 +1065,7 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
   .seg { width: 100%; overflow-x: auto; }
 
   .detail-hero { padding: 28px 0 24px; }
-  .detail-layout { padding: 24px 0 48px; gap: 24px; }
+  .detail-layout { padding-block: 24px 48px; gap: 24px; }
 
   .footer-grid { flex-direction: column; align-items: flex-start !important; text-align: left !important; }
   .footer-grid .caption { text-align: left !important; }
