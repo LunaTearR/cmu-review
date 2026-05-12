@@ -23,7 +23,7 @@
   --accent-rose:  #E9789C;
   --accent-amber: #E7A93C;
   --accent-mint:  #4FB89A;
-
+  --accent-blue:  #6BA7CD;
   --shadow-sm: 0 1px 2px rgba(60, 40, 110, 0.05);
   --shadow-md: 0 4px 14px rgba(80, 50, 140, 0.07), 0 1px 3px rgba(80, 50, 140, 0.04);
   --shadow-lg: 0 18px 40px rgba(80, 50, 140, 0.10), 0 4px 12px rgba(80, 50, 140, 0.05);
@@ -64,6 +64,7 @@
   --accent-rose:  #ED88A8;
   --accent-amber: #F1BF66;
   --accent-mint:  #6BCDB0;
+  --accent-blue:  #6BA7CD;
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
@@ -232,9 +233,11 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .tag-mint  { background: color-mix(in oklab, var(--accent-mint)  18%, var(--bg)); color: color-mix(in oklab, var(--accent-mint)  80%, black); }
 .tag-amber { background: color-mix(in oklab, var(--accent-amber) 22%, var(--bg)); color: color-mix(in oklab, var(--accent-amber) 75%, black); }
 .tag-rose  { background: color-mix(in oklab, var(--accent-rose)  18%, var(--bg)); color: color-mix(in oklab, var(--accent-rose)  75%, black); }
+.tag-blue  { background: color-mix(in oklab, var(--accent-blue)  18%, var(--bg)); color: color-mix(in oklab, var(--accent-blue)  80%, black); }
 [data-theme="dark"] .tag-mint  { color: color-mix(in oklab, var(--accent-mint)  80%, white); }
 [data-theme="dark"] .tag-amber { color: color-mix(in oklab, var(--accent-amber) 80%, white); }
 [data-theme="dark"] .tag-rose  { color: color-mix(in oklab, var(--accent-rose)  80%, white); }
+[data-theme="dark"] .tag-blue  { color: color-mix(in oklab, var(--accent-blue)  80%, white); }
 
 /* ── cards ──────────────────────────────────────────────────────── */
 .card {
