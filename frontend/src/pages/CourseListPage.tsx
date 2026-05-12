@@ -9,6 +9,7 @@ import { CourseRow } from '@/components/CourseRow'
 import { IconSearch, IconPlus, IconGrid, IconList, IconMenu } from '@/components/Icons'
 import { CourseFilterPanel } from '@/components/CourseFilterPanel'
 import { useDataRefresh } from '@/context/DataRefreshContext'
+import { pickError } from '@/lib/humanErrors'
 
 const LIMIT = 20
 const CREDITS = [1, 2, 3, 4, 5, 6]
@@ -78,7 +79,7 @@ export function CourseListPage() {
       const res = await fetchCourses({ ...apiFilters, limit: LIMIT, page: 1 })
       setCourses(res.data); setTotal(res.total); setOffset(res.data.length)
     } catch {
-      setError('โหลดข้อมูลไม่สำเร็จ กรุณาลองใหม่')
+      setError(pickError('COURSE_LIST_LOAD_FAILED'))
     } finally {
       setLoading(false)
     }
@@ -102,7 +103,7 @@ export function CourseListPage() {
       setCourses(prev => [...prev, ...res.data])
       setOffset(prev => prev + res.data.length)
     } catch {
-      setError('โหลดข้อมูลไม่สำเร็จ')
+      setError(pickError('COURSE_LIST_LOAD_FAILED'))
     } finally {
       setLoadingMore(false)
     }
