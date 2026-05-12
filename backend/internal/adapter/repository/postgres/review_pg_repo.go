@@ -99,6 +99,29 @@ func (r *reviewPgRepo) ListByCourse(ctx context.Context, courseID int, opts repo
 	return reviews, total, rows.Err()
 }
 
+func (r *reviewPgRepo) ListDistinctPrograms(ctx context.Context) ([]string, error) {
+	const q = `
+		SELECT DISTINCT program
+		FROM reviews
+		WHERE program <> '' AND is_hidden = FALSE
+		ORDER BY program`
+	rows, err := r.db.QueryContext(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var programs []string
+	for rows.Next() {
+		var p string
+		if err := rows.Scan(&p); err != nil {
+			return nil, err
+		}
+		programs = append(programs, p)
+	}
+	return programs, rows.Err()
+}
+
 func (r *reviewPgRepo) CountRecentByHash(ctx context.Context, ipHash string, since time.Time) (int, error) {
 	const q = `SELECT COUNT(*) FROM reviews WHERE ip_hash = $1 AND created_at > $2`
 	var count int

@@ -75,6 +75,12 @@ func (r *coursePgRepo) List(ctx context.Context, opts repository.CourseListOpts)
 	}
 	facArg := pq.Array(faculties)
 
+	programs := opts.Programs
+	if programs == nil {
+		programs = []string{}
+	}
+	progArg := pq.Array(programs)
+
 	const where = `
 		WHERE (cardinality($1::text[]) = 0 OR f.code = ANY($1::text[]))
 		  AND ($2 = 0  OR c.credits = $2)
@@ -90,6 +96,12 @@ func (r *coursePgRepo) List(ctx context.Context, opts repository.CourseListOpts)
 		        WHERE rv2.course_id = c.id
 		          AND rv2.category = $5
 		          AND NOT rv2.is_hidden
+		      ))
+		  AND (cardinality($6::text[]) = 0 OR EXISTS (
+		        SELECT 1 FROM reviews rv3
+		        WHERE rv3.course_id = c.id
+		          AND rv3.program = ANY($6::text[])
+		          AND NOT rv3.is_hidden
 		      ))`
 
 	countQ := `SELECT COUNT(DISTINCT c.id)
@@ -98,7 +110,7 @@ func (r *coursePgRepo) List(ctx context.Context, opts repository.CourseListOpts)
 
 	var total int
 	if err := r.db.QueryRowContext(ctx, countQ,
-		facArg, opts.Credits, opts.Search, likeContains, opts.Category,
+		facArg, opts.Credits, opts.Search, likeContains, opts.Category, progArg,
 	).Scan(&total); err != nil {
 		return nil, 0, err
 	}
@@ -122,10 +134,10 @@ func (r *coursePgRepo) List(ctx context.Context, opts repository.CourseListOpts)
 		where + `
 		GROUP BY c.id, f.id
 		ORDER BY ` + orderBy + `
-		LIMIT $6 OFFSET $7`
+		LIMIT $7 OFFSET $8`
 
 	rows, err := r.db.QueryContext(ctx, q,
-		facArg, opts.Credits, opts.Search, likeContains, opts.Category,
+		facArg, opts.Credits, opts.Search, likeContains, opts.Category, progArg,
 		opts.Limit, opts.Offset,
 	)
 	if err != nil {

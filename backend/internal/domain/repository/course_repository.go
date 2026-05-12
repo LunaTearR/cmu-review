@@ -12,6 +12,7 @@ type CourseListOpts struct {
 	Faculties []string // empty = all
 	Credits   int      // 0 = all
 	Category  string
+	Programs  []string // empty = all; filters via reviews.program
 	SortBy    string
 	Limit     int
 	Offset    int

@@ -72,11 +72,22 @@ func (h *CourseHandler) List(c *gin.Context) {
 		}
 	}
 
+	// `program` accepts comma-separated program types for multi-select.
+	var programs []string
+	if raw := c.Query("program"); raw != "" {
+		for _, p := range strings.Split(raw, ",") {
+			if p = strings.TrimSpace(p); p != "" {
+				programs = append(programs, p)
+			}
+		}
+	}
+
 	courses, total, err := h.list.Execute(c.Request.Context(), courseuc.ListCoursesInput{
 		Search:    c.Query("search"),
 		Faculties: faculties,
 		Credits:   credits,
 		Category:  c.Query("category"),
+		Programs:  programs,
 		SortBy:    c.Query("sort"),
 		Page:      page,
 		Limit:     limit,

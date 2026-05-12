@@ -13,6 +13,7 @@ type ListCoursesInput struct {
 	Faculties []string
 	Credits   int
 	Category  string
+	Programs  []string
 	SortBy    string
 	Page      int
 	Limit     int
@@ -41,6 +42,7 @@ func (uc *ListCoursesUseCase) Execute(ctx context.Context, in ListCoursesInput) 
 		Faculties: in.Faculties,
 		Credits:   in.Credits,
 		Category:  in.Category,
+		Programs:  in.Programs,
 		SortBy:    in.SortBy,
 		Limit:     in.Limit,
 		Offset:    (in.Page - 1) * in.Limit,

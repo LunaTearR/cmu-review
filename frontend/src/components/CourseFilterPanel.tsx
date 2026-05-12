@@ -6,21 +6,24 @@ interface Props {
   facCode: string
   cats: string[]
   credits: number[]
+  programs: string[]
   categories: string[]
   creditOptions: number[]
+  programOptions: string[]
   activeCount: number
   open: boolean
   variant?: 'inline' | 'drawer'
   onSelectFaculty: (code: string) => void
   onToggleCat: (cat: string) => void
   onToggleCredit: (n: number) => void
+  onToggleProgram: (p: string) => void
   onClear: () => void
   onClose: () => void
 }
 
 export function CourseFilterPanel({
-  faculties, facCode, cats, credits, categories, creditOptions, activeCount, open, variant = 'inline',
-  onSelectFaculty, onToggleCat, onToggleCredit, onClear, onClose,
+  faculties, facCode, cats, credits, programs, categories, creditOptions, programOptions, activeCount, open, variant = 'inline',
+  onSelectFaculty, onToggleCat, onToggleCredit, onToggleProgram, onClear, onClose,
 }: Props) {
   const variantClass = variant === 'drawer' ? 'is-drawer' : 'is-inline'
   return (
@@ -57,6 +60,16 @@ export function CourseFilterPanel({
           <div key={c} className="checkbox-row" onClick={() => onToggleCat(c)}>
             <span className={`cbox ${cats.includes(c) ? 'is-on' : ''}`} />
             <span>{c}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="filter-group">
+        <div className="filter-group-label">ประเภทหลักสูตร</div>
+        {programOptions.map(p => (
+          <div key={p} className="checkbox-row" onClick={() => onToggleProgram(p)}>
+            <span className={`cbox ${programs.includes(p) ? 'is-on' : ''}`} />
+            <span>{p}</span>
           </div>
         ))}
       </div>

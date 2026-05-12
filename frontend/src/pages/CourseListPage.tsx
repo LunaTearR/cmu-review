@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import type { Course } from '@/types/course'
 import type { Faculty } from '@/types/faculty'
-import { fetchCourses, fetchFaculties } from '@/api/courses'
+import { fetchCourses, fetchFaculties, fetchPrograms } from '@/api/courses'
 import { CourseCard } from '@/components/CourseCard'
 import { CourseRow } from '@/components/CourseRow'
 import { IconSearch, IconPlus, IconGrid, IconList, IconMenu } from '@/components/Icons'
@@ -20,6 +20,22 @@ const CATEGORIES = [
   'หมวดวิชาเลือกทั่วไป (GE)',
   'หมวดวิชาฟรี',
 ]
+const PROGRAMS = ['ภาคปกติ', 'ภาคพิเศษ', 'นานาชาติ', 'อื่นๆ']
+const MAIN_PROGRAMS = ['ภาคปกติ', 'ภาคพิเศษ', 'นานาชาติ']
+const OTHER_PROGRAM = 'อื่นๆ'
+
+// Expands "อื่นๆ" into all known programs not in MAIN_PROGRAMS.
+// Returns [] when the resolution covers every known program (i.e. no filter needed).
+export function resolveCourseTypes(selected: string[], allCourseTypes: string[]): string[] {
+  if (selected.length === 0) return []
+  const hasOther = selected.includes(OTHER_PROGRAM)
+  const mains = selected.filter(s => s !== OTHER_PROGRAM)
+  if (!hasOther) return mains
+  // all 3 main + อื่นๆ → covers everything → drop filter
+  if (MAIN_PROGRAMS.every(m => mains.includes(m))) return []
+  const others = allCourseTypes.filter(p => !MAIN_PROGRAMS.includes(p))
+  return Array.from(new Set([...mains, ...others]))
+}
 
 export function CourseListPage() {
   const navigate = useNavigate()
@@ -36,6 +52,7 @@ export function CourseListPage() {
   const [facCode, setFacCode] = useState<string>(initialFacCode)
   const [cats, setCats] = useState<string[]>([])
   const [credits, setCredits] = useState<number[]>([])
+  const [programs, setPrograms] = useState<string[]>([])
   const [sort, setSort] = useState<'rating' | 'reviews' | 'code'>('rating')
   const [density, setDensity] = useState<'grid' | 'list'>('grid')
 
@@ -43,6 +60,7 @@ export function CourseListPage() {
   const [total, setTotal] = useState(0)
   const [offset, setOffset] = useState(0)
   const [faculties, setFaculties] = useState<Faculty[]>([])
+  const [allPrograms, setAllPrograms] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -62,17 +80,26 @@ export function CourseListPage() {
   }, [filterOpen])
 
   useEffect(() => { fetchFaculties().then(setFaculties).catch(console.error) }, [])
+  useEffect(() => { fetchPrograms().then(setAllPrograms).catch(console.error) }, [])
 
   const toggle = <T,>(arr: T[], v: T): T[] => (arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v])
 
-  // single-select faculty. category/credits still single (first selected).
-  const apiFilters = useMemo(() => ({
-    search: query,
-    faculty: facCode,
-    credits: credits[0],
-    category: cats[0],
-    sort,
-  }), [query, facCode, credits, cats, sort])
+  // single-select faculty. category/credits still single (first selected). program multi-select via CSV.
+  // "อื่นๆ" expands to allPrograms minus MAIN_PROGRAMS via resolveCourseTypes.
+  const apiFilters = useMemo(() => {
+    const resolved = resolveCourseTypes(programs, allPrograms)
+    const programParam = programs.length > 0 && resolved.length === 0
+      ? '' // all 4 selected (covers everything) → no filter
+      : resolved.join(',')
+    return {
+      search: query,
+      faculty: facCode,
+      credits: credits[0],
+      category: cats[0],
+      program: programParam,
+      sort,
+    }
+  }, [query, facCode, credits, cats, programs, allPrograms, sort])
 
   const loadInitial = useCallback(async () => {
     setLoading(true); setError(null)
@@ -111,8 +138,8 @@ export function CourseListPage() {
   }
 
   const onSearchSubmit = (e: React.FormEvent) => { e.preventDefault(); setQuery(searchInput) }
-  const clearAll = () => { setFacCode(''); setCats([]); setCredits([]); setQuery(''); setSearchInput('') }
-  const activeFilterCount = (facCode ? 1 : 0) + cats.length + credits.length + (query ? 1 : 0)
+  const clearAll = () => { setFacCode(''); setCats([]); setCredits([]); setPrograms([]); setQuery(''); setSearchInput('') }
+  const activeFilterCount = (facCode ? 1 : 0) + cats.length + credits.length + programs.length + (query ? 1 : 0)
 
   const hasMore = courses.length < total
 
@@ -121,13 +148,16 @@ export function CourseListPage() {
     facCode,
     cats,
     credits,
+    programs,
     categories: CATEGORIES,
     creditOptions: CREDITS,
+    programOptions: PROGRAMS,
     activeCount: activeFilterCount,
     // click same code = clear; click new code = replace
     onSelectFaculty: (code: string) => setFacCode(prev => (prev === code ? '' : code)),
     onToggleCat: (c: string) => setCats(toggle(cats, c)),
     onToggleCredit: (n: number) => setCredits(toggle(credits, n)),
+    onToggleProgram: (p: string) => setPrograms(toggle(programs, p)),
     onClear: () => { clearAll(); setFilterOpen(false) },
     onClose: () => setFilterOpen(false),
   }
