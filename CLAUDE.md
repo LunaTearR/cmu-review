@@ -86,7 +86,8 @@ backend/
 ```
 GET  /healthz
 GET  /api/v1/faculties                ?  (Redis-cached)
-GET  /api/v1/courses                  ?search=&faculty=&credits=&category=&sort=&page=&limit=
+GET  /api/v1/programs                 ? returns distinct reviews.program values: {"data": ["ภาคปกติ", ...]}
+GET  /api/v1/courses                  ?search=&faculty=&credits=&category=&program=&sort=&page=&limit=
 POST /api/v1/courses
 GET  /api/v1/courses/:id
 GET  /api/v1/courses/:id/reviews
@@ -94,6 +95,8 @@ POST /api/v1/courses/:id/reviews
 ```
 
 No `/api/v1/reviews/new` route — review submission UI is a global modal in the frontend.
+
+`program` query param on `/courses` accepts comma-separated list (e.g. `ภาคปกติ,นานาชาติ`). Filtered via `EXISTS` subquery on `reviews.program = ANY(...)`. Frontend resolves the synthetic "อื่นๆ" selection into the actual non-main program values fetched from `/api/v1/programs` before sending. If selection covers everything, the param is sent empty (no filter).
 
 ### Key design decisions
 
@@ -106,6 +109,8 @@ No `/api/v1/reviews/new` route — review submission UI is a global modal in the
 **Course search**: GIN index on `to_tsvector('simple', name_th || name_en || course_id)`. Repo uses `tsquery` with ILIKE fallback for substring matching. Search `$term` becomes `%$term%` for ILIKE — contains, not prefix.
 
 **Course category filter**: filters via `EXISTS` subquery on `reviews.category` (course has no direct category column).
+
+**Course program filter**: same shape as category. Accepts a CSV via `?program=`, parsed in handler, passed to repo as `Programs []string`, filtered via `EXISTS (... reviews.program = ANY($n))`. Frontend "อื่นๆ" checkbox is synthetic — `resolveCourseTypes(selected, allPrograms)` (in `CourseListPage.tsx`) expands it to all distinct programs not in `MAIN_PROGRAMS = ['ภาคปกติ', 'ภาคพิเศษ', 'นานาชาติ']`. Selection covering everything resolves to `[]` → no filter sent.
 
 **Ratings aggregation**: `AVG`/`COUNT` computed inline per query with `FILTER (WHERE NOT rv.is_hidden)`. No separate view yet.
 
@@ -152,6 +157,8 @@ Migrations (sequential, all reflect actual on-disk files):
 - `000003` — reviews table (course FK, dedup unique index on (course_id, ip_hash, academic_year, semester))
 - `000004` — adds `category`, `program`, `professor`, `reviewer_name` to reviews
 - `000005` — adds `prerequisite TEXT NOT NULL DEFAULT ''` to courses
+
+**Down migrations are destructive** — `*.down.sql` files run real `DROP TABLE` / `DROP COLUMN` statements. Never run `make migrate-down` on prod. Fix-forward pattern: any schema change in prod = new `00000N_*` migration. Down migrations exist for dev/CI resets only.
 
 Tables: `faculties → courses → reviews`. Config via env vars — see `configs/config.go`.
 
