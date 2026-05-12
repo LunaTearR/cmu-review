@@ -8,13 +8,13 @@ import (
 
 // SortBy values: "code" | "rating" | "reviews" | ""
 type CourseListOpts struct {
-	Search   string
-	Faculty  string
-	Credits  int // 0 = all
-	Category string
-	SortBy   string
-	Limit    int
-	Offset   int
+	Search    string
+	Faculties []string // empty = all
+	Credits   int      // 0 = all
+	Category  string
+	SortBy    string
+	Limit     int
+	Offset    int
 }
 
 type CourseRepository interface {

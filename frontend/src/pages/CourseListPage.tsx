@@ -27,10 +27,11 @@ export function CourseListPage() {
 
   const initialQuery = params.get('q') ?? ''
   const initialFaculty = params.get('faculty') ?? ''
+  const initialFacCodes = initialFaculty ? initialFaculty.split(',').filter(Boolean) : []
 
   const [searchInput, setSearchInput] = useState(initialQuery)
   const [query, setQuery] = useState(initialQuery)
-  const [facCode, setFacCode] = useState<string>(initialFaculty)
+  const [facCodes, setFacCodes] = useState<string[]>(initialFacCodes)
   const [cats, setCats] = useState<string[]>([])
   const [credits, setCredits] = useState<number[]>([])
   const [sort, setSort] = useState<'rating' | 'reviews' | 'code'>('rating')
@@ -62,14 +63,14 @@ export function CourseListPage() {
 
   const toggle = <T,>(arr: T[], v: T): T[] => (arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v])
 
-  // backend supports single faculty/category/credits, so use first selected
+  // backend accepts faculty as comma-separated codes. category/credits still single (first selected).
   const apiFilters = useMemo(() => ({
     search: query,
-    faculty: facCode,
+    faculty: facCodes.join(','),
     credits: credits[0],
     category: cats[0],
     sort,
-  }), [query, facCode, credits, cats, sort])
+  }), [query, facCodes, credits, cats, sort])
 
   const loadInitial = useCallback(async () => {
     setLoading(true); setError(null)
@@ -89,9 +90,9 @@ export function CourseListPage() {
   useEffect(() => {
     const p = new URLSearchParams()
     if (query) p.set('q', query)
-    if (facCode) p.set('faculty', facCode)
+    if (facCodes.length) p.set('faculty', facCodes.join(','))
     setParams(p, { replace: true })
-  }, [query, facCode, setParams])
+  }, [query, facCodes, setParams])
 
   const loadMore = async () => {
     setLoadingMore(true)
@@ -108,20 +109,20 @@ export function CourseListPage() {
   }
 
   const onSearchSubmit = (e: React.FormEvent) => { e.preventDefault(); setQuery(searchInput) }
-  const clearAll = () => { setFacCode(''); setCats([]); setCredits([]); setQuery(''); setSearchInput('') }
-  const activeFilterCount = (facCode ? 1 : 0) + cats.length + credits.length + (query ? 1 : 0)
+  const clearAll = () => { setFacCodes([]); setCats([]); setCredits([]); setQuery(''); setSearchInput('') }
+  const activeFilterCount = facCodes.length + cats.length + credits.length + (query ? 1 : 0)
 
   const hasMore = courses.length < total
 
   const filterProps = {
     faculties,
-    facCode,
+    facCodes,
     cats,
     credits,
     categories: CATEGORIES,
     creditOptions: CREDITS,
     activeCount: activeFilterCount,
-    onSetFaculty: setFacCode,
+    onToggleFaculty: (code: string) => setFacCodes(toggle(facCodes, code)),
     onToggleCat: (c: string) => setCats(toggle(cats, c)),
     onToggleCredit: (n: number) => setCredits(toggle(credits, n)),
     onClear: () => { clearAll(); setFilterOpen(false) },

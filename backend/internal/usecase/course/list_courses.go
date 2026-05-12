@@ -9,13 +9,13 @@ import (
 )
 
 type ListCoursesInput struct {
-	Search   string
-	Faculty  string
-	Credits  int
-	Category string
-	SortBy   string
-	Page     int
-	Limit    int
+	Search    string
+	Faculties []string
+	Credits   int
+	Category  string
+	SortBy    string
+	Page      int
+	Limit     int
 }
 
 type ListCoursesUseCase struct {
@@ -37,12 +37,12 @@ func (uc *ListCoursesUseCase) Execute(ctx context.Context, in ListCoursesInput) 
 	in.Search = search.Sanitize(in.Search)
 
 	return uc.repo.List(ctx, repository.CourseListOpts{
-		Search:   in.Search,
-		Faculty:  in.Faculty,
-		Credits:  in.Credits,
-		Category: in.Category,
-		SortBy:   in.SortBy,
-		Limit:    in.Limit,
-		Offset:   (in.Page - 1) * in.Limit,
+		Search:    in.Search,
+		Faculties: in.Faculties,
+		Credits:   in.Credits,
+		Category:  in.Category,
+		SortBy:    in.SortBy,
+		Limit:     in.Limit,
+		Offset:    (in.Page - 1) * in.Limit,
 	})
 }
