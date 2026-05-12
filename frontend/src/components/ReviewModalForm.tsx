@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faLock } from '@fortawesome/free-solid-svg-icons'
 import type { Course } from '@/types/course'
 import type { CreateReviewPayload, Review } from '@/types/review'
 import { fetchCourse, fetchCourses } from '@/api/courses'
@@ -19,30 +21,41 @@ export function ReviewModalForm({ preselectCourseId, onSuccess, onCancel }: Prop
   const [showDD, setShowDD] = useState(false)
   const [results, setResults] = useState<Course[]>([])
   const [loadingCourse, setLoadingCourse] = useState(false)
+  const [locked, setLocked] = useState(false)
 
   useEffect(() => {
     if (preselectCourseId) {
       setLoadingCourse(true)
       fetchCourse(preselectCourseId)
-        .then(c => { setCourse(c); setCourseQuery(`${c.course_id} — ${c.name_th}`) })
+        .then(c => {
+          setCourse(c)
+          setCourseQuery(`${c.course_id} — ${c.name_th}`)
+          setLocked(true)
+        })
         .catch(console.error)
         .finally(() => setLoadingCourse(false))
     }
   }, [preselectCourseId])
 
   useEffect(() => {
-    if (!courseQuery || course) { setResults([]); return }
+    if (!courseQuery || course || locked) { setResults([]); return }
     const t = setTimeout(() => {
       fetchCourses({ search: courseQuery, limit: 8, page: 1 })
         .then(r => setResults(r.data))
         .catch(console.error)
     }, 200)
     return () => clearTimeout(t)
-  }, [courseQuery, course])
+  }, [courseQuery, course, locked])
 
   const pickCourse = (c: Course) => {
     setCourse(c)
     setCourseQuery(`${c.course_id} — ${c.name_th}`)
+    setShowDD(false)
+  }
+
+  const confirmCourse = () => {
+    if (!course) return
+    setLocked(true)
     setShowDD(false)
   }
 
@@ -62,22 +75,39 @@ export function ReviewModalForm({ preselectCourseId, onSuccess, onCancel }: Prop
       <div className="form-section">
         <div className="form-section-title">วิชาที่จะรีวิว</div>
         <div className="field" style={{ position: 'relative' }}>
-          <label className="field-label">เลือกวิชา <span className="req">*</span></label>
-          <div className="search-hero" style={{ padding: '4px 6px 4px 16px', boxShadow: 'none', border: '1px solid var(--border-strong)' }}>
+          <label className="field-label">
+            เลือกวิชา <span className="req">*</span>
+          </label>
+          <div
+            className={`search-hero${locked ? ' is-locked' : ''}`}
+            style={{ padding: '4px 6px 4px 16px', border: '1px solid var(--border-strong)' }}
+            aria-disabled={locked}
+          >
             <IconSearch width="16" height="16" />
             <input
               placeholder="พิมพ์รหัส หรือชื่อวิชา"
               value={courseQuery}
               onChange={(e) => { setCourseQuery(e.target.value); setCourse(null); setShowDD(true) }}
-              onFocus={() => setShowDD(true)}
+              onFocus={() => { if (!locked) setShowDD(true) }}
+              disabled={locked}
+              readOnly={locked}
+              aria-readonly={locked}
             />
-            {course && (
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setCourse(null); setCourseQuery(''); setShowDD(true) }}>
+            {locked ? (
+              <span className="lock-badge" aria-label="ล็อกวิชาแล้ว">
+                <FontAwesomeIcon icon={faLock} /> ล็อก
+              </span>
+            ) : course ? (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => { setCourse(null); setCourseQuery(''); setShowDD(true) }}
+              >
                 เปลี่ยน
               </button>
-            )}
+            ) : null}
           </div>
-          {showDD && !course && results.length > 0 && (
+          {showDD && !course && !locked && results.length > 0 && (
             <div style={{
               position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 6,
               background: 'var(--surface)', border: '1px solid var(--border-strong)',
@@ -95,25 +125,35 @@ export function ReviewModalForm({ preselectCourseId, onSuccess, onCancel }: Prop
                     {c.course_id}
                   </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="truncate" style={{ fontSize: 14.5, fontWeight: 600, color: 'var(--ink-1)' }}>{c.name_th}</div>
-                    <div className="caption truncate">{c.name_en}</div>
+                    <div style={{ fontSize: 14.5, fontWeight: 600, color: 'var(--ink-1)', wordBreak: 'break-word' }}>{c.name_th}</div>
+                    <div className="caption" style={{ wordBreak: 'break-word' }}>{c.name_en}</div>
                   </div>
                 </div>
               ))}
             </div>
           )}
-          {courseQuery && !course && !loadingCourse && results.length === 0 && (
+          {courseQuery && !course && !locked && !loadingCourse && results.length === 0 && (
             <div className="field-hint" style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>ไม่พบวิชาในระบบ</span>
               <Link to="/courses/new" onClick={onCancel}>เพิ่มวิชาใหม่ →</Link>
             </div>
           )}
         </div>
+
+        {course && !locked && (
+          <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
+            <button type="button" className="btn btn-primary" onClick={confirmCourse}>
+              รีวิวรายวิชานี้
+            </button>
+          </div>
+        )}
       </div>
 
-      {!course ? (
+      {!locked || !course ? (
         <div className="empty-state" style={{ padding: '32px 16px' }}>
-          <div className="body-sm">เลือกวิชาก่อนเขียนรีวิว</div>
+          <div className="body-sm">
+            {course ? 'กดปุ่ม "รีวิวรายวิชานี้" เพื่อเริ่มเขียนรีวิว' : 'เลือกวิชาก่อนเขียนรีวิว'}
+          </div>
         </div>
       ) : (
         <ReviewForm courseId={course.id} onSubmit={handleSubmit} onCancel={onCancel} />
