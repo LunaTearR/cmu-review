@@ -1,9 +1,9 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { IconBookOpen, IconSearch, IconPlus, IconPen, IconSun, IconMoon } from './Icons'
+import { IconSearch, IconPlus, IconPen, IconSun, IconMoon } from './Icons'
 import { useReviewModal } from '@/context/ReviewModalContext'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faPaw } from '@fortawesome/free-solid-svg-icons'
+import { faBookOpen } from '@fortawesome/free-solid-svg-icons'
 
 interface Props {
   children: React.ReactNode
@@ -27,7 +27,7 @@ export function Layout({ children }: Props) {
       <header className="nav">
         <div className="shell nav-inner">
           <Link to="/" className="brand">
-            <div className="brand-mark"><IconBookOpen width="18" height="18" /></div>
+            <div><FontAwesomeIcon icon={faBookOpen} /></div>
             <div className="brand-name"><span className="accent">morchor</span>CourseReview</div>
           </Link>
 
@@ -61,8 +61,8 @@ export function Layout({ children }: Props) {
       <footer style={{ borderTop: '1px solid var(--border)', padding: '40px 0 56px', marginTop: 40 }}>
         <div className="shell footer-grid" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
           <div>
-            <div className="brand" style={{ marginBottom: 6 }}>
-              <div className="brand-mark"><IconBookOpen width="18" height="18" /></div>
+            <div className="brand" style={{ marginBottom: 6, color: 'var(--brand-deep)' }}>
+              <div><FontAwesomeIcon icon={faBookOpen} /></div>
               <div className="brand-name"><span className="accent">morchor</span>CourseReview</div>
             </div>
             <div className="caption">รีวิวจากนักศึกษา เพื่อนักศึกษา</div>
@@ -70,7 +70,6 @@ export function Layout({ children }: Props) {
           <div className="caption" style={{ textAlign: 'right' }}>
             ไม่ได้สังกัดมหาวิทยาลัยเชียงใหม่อย่างเป็นทางการ<br />
             เนื้อหารีวิวเป็นความเห็นส่วนตัวของนักศึกษา
-          <FontAwesomeIcon icon={faPaw} />
           </div>
         </div>
       </footer>
