@@ -34,12 +34,13 @@ func (h *CourseHandler) Create(c *gin.Context) {
 	}
 
 	out, err := h.create.Execute(c.Request.Context(), courseuc.CreateCourseInput{
-		CourseCode:  body.CourseCode,
-		NameTH:      body.NameTH,
-		NameEN:      body.NameEN,
-		Credits:     body.Credits,
-		FacultyID:   body.FacultyID,
-		Description: body.Description,
+		CourseCode:   body.CourseCode,
+		NameTH:       body.NameTH,
+		NameEN:       body.NameEN,
+		Credits:      body.Credits,
+		FacultyID:    body.FacultyID,
+		Description:  body.Description,
+		Prerequisite: body.Prerequisite,
 	})
 	if err != nil {
 		switch {

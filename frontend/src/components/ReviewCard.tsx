@@ -6,105 +6,50 @@ interface Props {
   onClick?: () => void
 }
 
-const SEMESTER_LABEL: Record<number, string> = { 1: 'เทอมแรก', 2: 'เทอมสอง', 3: 'ซัมเมอร์' }
+const SEMESTER_LABEL: Record<number, string> = { 1: 'เทอม 1', 2: 'เทอม 2', 3: 'ซัมเมอร์' }
 
-const chip = (bg: string, color: string): React.CSSProperties => ({
-  display: 'inline-flex',
-  alignItems: 'center',
-  background: bg,
-  color,
-  padding: '0.125rem 0.5rem',
-  borderRadius: 5,
-  fontSize: '0.8rem',
-  fontWeight: 600,
-  whiteSpace: 'nowrap',
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-  maxWidth: '100%',
-})
+const gradeColor = (g: string): string => {
+  if (['A', 'A-'].includes(g)) return 'tag-mint'
+  if (['B+', 'B', 'B-'].includes(g)) return 'tag-brand'
+  if (['C+', 'C', 'C-'].includes(g)) return 'tag-amber'
+  if (['D+', 'D', 'F'].includes(g)) return 'tag-rose'
+  return ''
+}
 
 export function ReviewCard({ review, onClick }: Props) {
-  const date = new Date(review.created_at).toLocaleDateString('th-TH', {
-    year: 'numeric', month: 'short', day: 'numeric',
-  })
-
+  const nick = review.reviewer_name || 'นักศึกษาไม่เปิดเผยชื่อ'
+  const initial = (review.reviewer_name || '?')[0]
   const interactive = !!onClick
 
   return (
-    <div
+    <article
+      className={`review ${interactive ? 'is-clickable' : ''}`}
+      onClick={onClick}
       role={interactive ? 'button' : undefined}
       tabIndex={interactive ? 0 : undefined}
-      onClick={onClick}
       onKeyDown={interactive ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.() } } : undefined}
-      onMouseEnter={interactive ? (e) => {
-        e.currentTarget.style.boxShadow = '0 6px 20px rgba(75,30,120,0.14)'
-        e.currentTarget.style.borderColor = 'rgba(123,63,160,0.40)'
-        e.currentTarget.style.transform = 'translateY(-2px)'
-      } : undefined}
-      onMouseLeave={interactive ? (e) => {
-        e.currentTarget.style.boxShadow = '0 1px 6px rgba(0,0,0,0.07)'
-        e.currentTarget.style.borderColor = 'rgba(180,140,220,0.25)'
-        e.currentTarget.style.transform = 'translateY(0)'
-      } : undefined}
-      style={{
-        background: '#fff',
-        border: '1px solid rgba(180,140,220,0.25)',
-        borderRadius: 12,
-        padding: '1rem 1.125rem',
-        boxShadow: '0 1px 6px rgba(0,0,0,0.07)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '0.5rem',
-        minWidth: 0,
-        cursor: interactive ? 'pointer' : 'default',
-        transition: 'box-shadow 0.18s, border-color 0.18s, transform 0.18s',
-        outline: 'none',
-      }}
     >
-      {/* Row 1: left group (rating + grade) / right group (semester) */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', minWidth: 0 }}>
-          <Rating value={review.rating} />
-          {review.grade && (
-            <span style={chip('var(--cmu-primary)', '#fff')}>เกรด {review.grade}</span>
-          )}
+      <div className="review-head">
+        <div className="review-author">
+          <div className="avatar">{initial}</div>
+          <div>
+            <div style={{ fontWeight: 600, color: 'var(--ink-1)', fontSize: 14.5 }}>{nick}</div>
+            <div className="caption">รีวิวเมื่อ{SEMESTER_LABEL[review.semester] ?? `ภาค ${review.semester}`}/{review.academic_year}</div>
+          </div>
         </div>
-        <span style={{ fontSize: '0.875rem', color: 'var(--cmu-text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
-          ปี {review.academic_year} {SEMESTER_LABEL[review.semester]}
-        </span>
+        <Rating value={review.rating} size="lg" />
       </div>
 
-      {/* Row 2: meta chips */}
-      {(review.professor || review.program || review.category) && (
-        <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', minWidth: 0 }}>
-          {review.professor && (
-            <span style={{ ...chip('rgba(75,30,120,0.07)', 'var(--cmu-text-sub)'), maxWidth: '22ch' }}>
-              👨‍🏫 {review.professor}
-            </span>
-          )}
-          {review.program && (
-            <span style={chip('rgba(201,162,39,0.10)', '#7a5c00')}>
-              {review.program}
-            </span>
-          )}
-          {review.category && (
-            <span style={chip('rgba(0,0,0,0.05)', 'var(--cmu-text-muted)')}>
-              {review.category}
-            </span>
-          )}
-        </div>
-      )}
+      <div className="review-meta-chips">
+        {review.grade && <span className={`tag ${gradeColor(review.grade)}`}>เกรด {review.grade}</span>}
+        {review.professor && <span className="tag">อ. {review.professor}</span>}
+        {review.program && <span className="tag">หลักสูตร{review.program}</span>}
+        {review.category && <span className="tag">{review.category}</span>}
+      </div>
 
-      {/* Row 3: review content — 4-line clamp */}
-      <p
-        className="line-clamp-4"
-        style={{ margin: 0, lineHeight: 1.7, color: 'var(--cmu-text)', fontSize: '1rem' }}
-      >
+      <p className="review-text line-clamp-4" style={{ marginTop: 16, marginBottom: 0, whiteSpace: 'pre-wrap' }}>
         {review.content}
       </p>
-
-      {/* Row 4: date */}
-      <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--cmu-text-muted)', whiteSpace: 'nowrap' }}>{date}</p>
-    </div>
+    </article>
   )
 }

@@ -1,20 +1,24 @@
-import { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useCallback, useEffect, useState, useMemo } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
 import type { Course } from '@/types/course'
 import type { Review } from '@/types/review'
 import { fetchCourse } from '@/api/courses'
-import { fetchReviews, createReview } from '@/api/reviews'
+import { fetchReviews } from '@/api/reviews'
 import { Rating } from '@/components/Rating'
 import { ReviewCard } from '@/components/ReviewCard'
 import { ReviewModal } from '@/components/ReviewModal'
-import { ReviewForm } from '@/components/ReviewForm'
-import type { CreateReviewPayload } from '@/types/review'
+import { IconBack, IconPen } from '@/components/Icons'
+import { useReviewModal } from '@/context/ReviewModalContext'
+import { useDataRefresh } from '@/context/DataRefreshContext'
 
 const LIMIT = 20
 
 export function CourseDetailPage() {
   const { id } = useParams<{ id: string }>()
   const courseId = Number(id)
+  const navigate = useNavigate()
+  const { open: openReview } = useReviewModal()
+  const { coursesV, reviewsV } = useDataRefresh()
 
   const [course, setCourse] = useState<Course | null>(null)
   const [reviews, setReviews] = useState<Review[]>([])
@@ -22,179 +26,210 @@ export function CourseDetailPage() {
   const [page, setPage] = useState(1)
   const [courseLoading, setCourseLoading] = useState(true)
   const [reviewsLoading, setReviewsLoading] = useState(true)
-  const [showForm, setShowForm] = useState(false)
   const [selectedReview, setSelectedReview] = useState<Review | null>(null)
+  const [sort, setSort] = useState<'recent' | 'helpful' | 'high' | 'low'>('recent')
 
   useEffect(() => {
-    fetchCourse(courseId)
-      .then(setCourse)
-      .catch(console.error)
-      .finally(() => setCourseLoading(false))
-  }, [courseId])
+    setCourseLoading(true)
+    fetchCourse(courseId).then(setCourse).catch(console.error).finally(() => setCourseLoading(false))
+  }, [courseId, coursesV])
 
-  const loadReviews = async (p: number) => {
+  const loadReviews = useCallback(async (p: number) => {
     setReviewsLoading(true)
     try {
       const res = await fetchReviews(courseId, p, LIMIT)
-      setReviews(res.data)
-      setTotal(res.total)
-      setPage(p)
+      setReviews(res.data); setTotal(res.total); setPage(p)
     } catch (err) {
       console.error(err)
     } finally {
       setReviewsLoading(false)
     }
-  }
+  }, [courseId])
 
-  useEffect(() => { loadReviews(1) }, [courseId])
+  useEffect(() => { loadReviews(1) }, [courseId, reviewsV, loadReviews])
 
-  const handleSubmitReview = async (payload: CreateReviewPayload) => {
-    await createReview(courseId, payload)
-    setShowForm(false)
-    await loadReviews(1)
-    fetchCourse(courseId).then(setCourse).catch(console.error)
-  }
+  const optimisticAddReview = useCallback((review: Review) => {
+    setReviews(prev => [review, ...prev])
+    setTotal(prev => prev + 1)
+    setCourse(prev => prev ? {
+      ...prev,
+      avg_rating: (prev.avg_rating * prev.review_count + review.rating) / (prev.review_count + 1),
+      review_count: prev.review_count + 1,
+    } : prev)
+  }, [])
+
+  const sortedReviews = useMemo(() => {
+    const arr = [...reviews]
+    if (sort === 'recent') arr.sort((a, b) => (b.academic_year * 10 + b.semester) - (a.academic_year * 10 + a.semester))
+    if (sort === 'high') arr.sort((a, b) => b.rating - a.rating)
+    if (sort === 'low')  arr.sort((a, b) => a.rating - b.rating)
+    return arr
+  }, [sort, reviews])
 
   const totalPages = Math.ceil(total / LIMIT)
 
-  if (courseLoading) return (
-    <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--cmu-text-muted)', fontSize: '0.9375rem' }}>กำลังโหลด...</div>
-  )
-  if (!course) return (
-    <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--cmu-error)', fontWeight: 600, fontSize: '0.9375rem' }}>ไม่พบวิชานี้</div>
-  )
+  const gradeDist = useMemo(() => {
+    const grades = ['A', 'B+', 'B', 'C+', 'C', 'D+', 'D', 'F']
+    return grades.map(g => ({ g, count: reviews.filter(r => r.grade === g).length }))
+  }, [reviews])
+  const maxGrade = Math.max(1, ...gradeDist.map(x => x.count))
+  const recommend = useMemo(() => {
+    if (!reviews.length) return 0
+    return Math.round((reviews.filter(r => r.rating >= 4).length / reviews.length) * 100)
+  }, [reviews])
 
-  const pageBtn = (disabled: boolean): React.CSSProperties => ({
-    padding: '0.4rem 1rem',
-    borderRadius: 8,
-    border: '1px solid var(--cmu-border-strong)',
-    background: disabled ? 'var(--cmu-bg)' : 'var(--cmu-bg-card)',
-    color: disabled ? 'var(--cmu-text-muted)' : 'var(--cmu-primary)',
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    fontWeight: 600,
-    fontSize: '0.9375rem',
-  })
+  if (courseLoading) return <div className="shell empty-state">กำลังโหลด...</div>
+  if (!course) return <div className="shell empty-state" style={{ color: 'var(--accent-rose)' }}>ไม่พบวิชานี้</div>
 
   return (
-    <div>
-      <Link to="/" style={{ color: 'var(--cmu-accent)', textDecoration: 'none', fontSize: '0.9375rem', fontWeight: 600 }}>
-        ← กลับ
-      </Link>
-
-      <div className="detail-layout" style={{ marginTop: '1rem' }}>
-
-        {/* ── Sidebar: course info + write review ── */}
-        <div className="detail-sidebar">
-          <div style={{
-            background: 'rgba(75, 30, 120, 0.68)',
-            backdropFilter: 'blur(18px)',
-            WebkitBackdropFilter: 'blur(18px)',
-            border: '1px solid rgba(201,162,39,0.35)',
-            boxShadow: '0 4px 32px rgba(0,0,0,0.3)',
-            borderRadius: 14,
-            padding: '1.375rem 1.5rem',
-            marginBottom: '0.875rem',
-            color: '#fff',
-          }}>
-            <span style={{ fontSize: '0.875rem', opacity: 0.85, fontWeight: 600 }}>
-              {course.course_id} &nbsp;·&nbsp; {course.credits} หน่วยกิต &nbsp;·&nbsp; {course.faculty.name_th}
-            </span>
-            <h1 style={{ margin: '0.3rem 0 0', fontSize: '1.5rem', fontWeight: 800, lineHeight: 1.3 }}>{course.name_th}</h1>
-            <p style={{ margin: '0.2rem 0 0', opacity: 0.85, fontSize: '0.9375rem', lineHeight: 1.5 }}>{course.name_en}</p>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginTop: '0.875rem' }}>
-              <Rating value={Math.round(course.avg_rating)} />
-              <span style={{ fontWeight: 800, fontSize: '1.25rem' }}>{course.avg_rating.toFixed(1)}</span>
-              <span style={{ opacity: 0.8, fontSize: '0.875rem' }}>({course.review_count} รีวิว)</span>
-            </div>
-
-            {course.description && (
-              <p style={{ marginTop: '0.875rem', opacity: 0.9, lineHeight: 1.65, fontSize: '0.9375rem', marginBottom: 0 }}>
-                {course.description}
-              </p>
-            )}
-          </div>
-
+    <div className="fade-in">
+      <div className="detail-hero">
+        <div className="shell">
           <button
-            onClick={() => setShowForm(!showForm)}
-            style={{
-              width: '100%',
-              padding: '0.675rem 1rem',
-              background: showForm ? 'transparent' : 'var(--cmu-primary)',
-              color: showForm ? 'var(--cmu-primary)' : '#fff',
-              border: `1px solid ${showForm ? 'var(--cmu-border-strong)' : 'var(--cmu-primary)'}`,
-              borderRadius: 8,
-              cursor: 'pointer',
-              fontWeight: 700,
-              fontSize: '0.9375rem',
-              transition: 'all 0.15s',
-              marginBottom: showForm ? '0.875rem' : 0,
-            }}
+            onClick={() => navigate(-1)}
+            className="caption"
+            style={{ display: 'inline-flex', gap: 6, alignItems: 'center', cursor: 'pointer', marginBottom: 16, background: 'none', border: 0 }}
           >
-            {showForm ? 'ยกเลิก' : '+ เขียนรีวิว'}
+            <IconBack /> กลับ
           </button>
 
-          {showForm && (
-            <div style={{
-              background: '#fff',
-              border: '1px solid rgba(180,140,220,0.35)',
-              borderTop: '3px solid var(--cmu-gold)',
-              borderRadius: 12,
-              padding: '1.25rem',
-              boxShadow: '0 2px 12px rgba(75,30,120,0.10)',
-            }}>
-              <h3 style={{ margin: '0 0 0.875rem', color: 'var(--cmu-primary)', fontWeight: 800, fontSize: '1.125rem' }}>เขียนรีวิว</h3>
-              <ReviewForm courseId={courseId} onSubmit={handleSubmitReview} />
-            </div>
-          )}
-        </div>
-
-        {/* ── Main: reviews ── */}
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.875rem' }}>
-            <h2 style={{ margin: 0, fontSize: '1.1875rem', fontWeight: 700, color: 'var(--cmu-text)' }}>
-              รีวิวทั้งหมด{' '}
-              <span style={{ color: 'var(--cmu-text-muted)', fontWeight: 400, fontSize: '1rem' }}>({total})</span>
-            </h2>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+            <span className="cc-code" style={{ display: 'inline-flex', padding: '4px 10px', borderRadius: 6, background: 'var(--brand-tint)', color: 'var(--brand-ink)', fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 600 }}>
+              {course.course_id}
+            </span>
+            <span className="tag tag-brand">{course.faculty.name_th}</span>
+            <span className="tag">{course.credits} หน่วยกิต</span>
           </div>
 
-          {reviewsLoading ? (
-            <p style={{ color: 'var(--cmu-text-muted)', fontSize: '0.9375rem' }}>กำลังโหลดรีวิว...</p>
-          ) : reviews.length === 0 ? (
-            <div style={{
-              textAlign: 'center',
-              padding: '2.5rem',
-              color: 'var(--cmu-text-muted)',
-              fontSize: '0.9375rem',
-              background: '#fff',
-              borderRadius: 12,
-              border: '1px solid rgba(180,140,220,0.30)',
-            }}>
-              ยังไม่มีรีวิว เป็นคนแรกที่รีวิววิชานี้!
-            </div>
-          ) : (
-            <>
-              <div className="review-grid">
-                {reviews.map((rv) => (
-                  <ReviewCard key={rv.id} review={rv} onClick={() => setSelectedReview(rv)} />
-                ))}
-              </div>
-              {totalPages > 1 && (
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem', justifyContent: 'center', alignItems: 'center' }}>
-                  <button onClick={() => loadReviews(page - 1)} disabled={page <= 1} style={pageBtn(page <= 1)}>
-                    ← ก่อนหน้า
-                  </button>
-                  <span style={{ padding: '0.4rem 0.75rem', color: 'var(--cmu-text-sub)', fontWeight: 600, fontSize: '0.9375rem' }}>
-                    {page} / {totalPages}
-                  </span>
-                  <button onClick={() => loadReviews(page + 1)} disabled={page >= totalPages} style={pageBtn(page >= totalPages)}>
-                    ถัดไป →
-                  </button>
+          <h1 className="h-display" style={{ marginBottom: 8, maxWidth: 800, textWrap: 'balance' }}>{course.name_th}</h1>
+          <p className="body-lg" style={{ color: 'var(--ink-3)', marginBottom: 24 }}>{course.name_en}</p>
+
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button className="btn btn-primary btn-lg" onClick={() => openReview({ courseId: course.id, onSuccess: optimisticAddReview })}>
+              <IconPen /> เขียนรีวิววิชานี้
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="shell detail-layout">
+        <div>
+          {(course.description || course.prerequisite) && (
+            <section style={{ marginBottom: 36 }}>
+              {course.description && (
+                <>
+                  <h2 className="h-2" style={{ marginBottom: 12 }}>คำอธิบายรายวิชา</h2>
+                  <p className="body-lg" style={{ color: 'var(--ink-2)', lineHeight: 1.8, textWrap: 'pretty', whiteSpace: 'pre-wrap' }}>
+                    {course.description}
+                  </p>
+                </>
+              )}
+              {course.prerequisite && (
+                <div style={{ marginTop: 18, padding: 16, background: 'var(--bg-soft)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)' }}>
+                  <div className="caption" style={{ marginBottom: 4, fontWeight: 600, color: 'var(--brand-deep)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                    เงื่อนไขที่ต้องผ่านก่อนเรียน
+                  </div>
+                  <div className="body" style={{ color: 'var(--ink-1)' }}>{course.prerequisite}</div>
                 </div>
               )}
-            </>
+            </section>
           )}
+
+          <section>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, flexWrap: 'wrap', gap: 12 }}>
+              <h2 className="h-2">
+                รีวิวจากนักศึกษา <span style={{ color: 'var(--ink-4)', fontWeight: 500 }}>({total})</span>
+              </h2>
+              <div className="seg">
+                <button className={sort === 'recent' ? 'is-active' : ''} onClick={() => setSort('recent')}>ล่าสุด</button>
+                <button className={sort === 'high' ? 'is-active' : ''} onClick={() => setSort('high')}>คะแนนสูง</button>
+                <button className={sort === 'low'  ? 'is-active' : ''} onClick={() => setSort('low')}>คะแนนต่ำ</button>
+              </div>
+            </div>
+
+            {reviewsLoading ? (
+              <div className="empty-state">กำลังโหลดรีวิว...</div>
+            ) : sortedReviews.length === 0 ? (
+              <div className="empty-state card">
+                <div style={{ fontSize: 32, marginBottom: 8 }}>💜</div>
+                <div className="h-3" style={{ marginBottom: 6 }}>ยังไม่มีรีวิววิชานี้</div>
+                <div className="body-sm" style={{ marginBottom: 16 }}>เป็นคนแรกที่แชร์ประสบการณ์</div>
+                <button className="btn btn-primary" onClick={() => openReview({ courseId: course.id, onSuccess: optimisticAddReview })}>
+                  <IconPen /> เขียนรีวิวแรก
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {sortedReviews.map(r => (
+                  <ReviewCard key={r.id} review={r} onClick={() => setSelectedReview(r)} />
+                ))}
+              </div>
+            )}
+
+            {totalPages > 1 && (
+              <div style={{ display: 'flex', gap: 8, marginTop: 20, justifyContent: 'center', alignItems: 'center' }}>
+                <button className="btn btn-ghost btn-sm" disabled={page <= 1} onClick={() => loadReviews(page - 1)}>← ก่อนหน้า</button>
+                <span className="caption" style={{ padding: '0 8px' }}>{page} / {totalPages}</span>
+                <button className="btn btn-ghost btn-sm" disabled={page >= totalPages} onClick={() => loadReviews(page + 1)}>ถัดไป →</button>
+              </div>
+            )}
+          </section>
         </div>
+
+        <aside>
+          <div className="detail-sticky">
+            <div className="card card-pad">
+              <div className="caption" style={{ marginBottom: 10 }}>คะแนนเฉลี่ย</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                <span style={{ fontSize: 48, fontWeight: 700, lineHeight: 1, color: 'var(--ink-1)' }}>
+                  {course.avg_rating.toFixed(1)}
+                </span>
+                <span className="body-sm">/ 5.0</span>
+              </div>
+              <div style={{ margin: '10px 0 14px' }}>
+                <Rating value={course.avg_rating} size="lg" />
+              </div>
+              <div className="caption">จาก {course.review_count} รีวิว</div>
+
+              {course.review_count > 0 && (
+                <>
+                  <hr className="divider" style={{ margin: '16px 0' }} />
+                  <div className="caption" style={{ marginBottom: 8 }}>แนะนำให้คนอื่นลงไหม</div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ fontSize: 22, fontWeight: 700, color: 'var(--ink-1)' }}>{recommend}%</span>
+                    <span className="caption">แนะนำ</span>
+                  </div>
+                  <div className="recbar"><div className="recbar-fill" style={{ width: `${recommend}%` }} /></div>
+                </>
+              )}
+            </div>
+
+            {reviews.length > 0 && (
+              <div className="card card-pad">
+                <div className="caption" style={{ marginBottom: 12 }}>การกระจายของเกรด</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  {gradeDist.map(({ g, count }) => (
+                    <div key={g} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span className="mono" style={{ width: 24, fontSize: 12, color: 'var(--ink-3)', fontWeight: 600 }}>{g}</span>
+                      <div style={{ flex: 1, height: 6, background: 'var(--bg-soft)', borderRadius: 999, overflow: 'hidden' }}>
+                        <div style={{ width: `${(count / maxGrade) * 100}%`, height: '100%', background: 'var(--brand)', borderRadius: 999 }} />
+                      </div>
+                      <span className="caption mono" style={{ width: 16, textAlign: 'right' }}>{count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="card card-pad" style={{ background: 'var(--bg-soft)' }}>
+              <div className="caption" style={{ marginBottom: 4 }}>เคยเรียนวิชานี้?</div>
+              <div className="body-sm" style={{ color: 'var(--ink-1)', marginBottom: 12 }}>แชร์ประสบการณ์ให้รุ่นน้อง</div>
+              <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => openReview({ courseId: course.id, onSuccess: optimisticAddReview })}>
+                <IconPen /> เขียนรีวิว
+              </button>
+            </div>
+          </div>
+        </aside>
       </div>
 
       <ReviewModal
