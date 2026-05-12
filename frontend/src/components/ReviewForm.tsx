@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { CreateReviewPayload } from '@/types/review'
 import { Rating } from './Rating'
 import { ApiError } from '@/api/client'
+import { pickError } from '@/lib/humanErrors'
 import { IconCheck } from './Icons'
 
 interface Props {
@@ -55,8 +56,8 @@ export function ReviewForm({ courseId: _courseId, onSubmit, onCancel }: Props) {
     e.preventDefault()
     setError(null)
 
-    if (!rating) return setError('กรุณาให้คะแนนหัวใจ')
-    if (content.trim().length < 30) return setError('รีวิวต้องมีอย่างน้อย 30 ตัวอักษร')
+    if (!rating) return setError(pickError('RATING_MISSING'))
+    if (content.trim().length < 30) return setError(pickError('REVIEW_TOO_SHORT'))
 
     setLoading(true)
     try {
@@ -74,11 +75,11 @@ export function ReviewForm({ courseId: _courseId, onSubmit, onCancel }: Props) {
       setSuccess(true)
     } catch (err) {
       if (err instanceof ApiError) {
-        if (err.status === 409) setError('คุณได้รีวิววิชานี้ในเทอมนี้แล้ว')
-        else if (err.status === 429) setError('ส่งรีวิวบ่อยเกินไป กรุณารอสักครู่')
-        else setError(err.message)
+        if (err.status === 409) setError(pickError('COURSE_ALREADY_REVIEWED'))
+        else if (err.status === 429) setError(pickError('RATE_LIMITED'))
+        else setError(pickError('SUBMIT_FAILED'))
       } else {
-        setError('เกิดข้อผิดพลาด กรุณาลองใหม่')
+        setError(pickError('NETWORK_ERROR'))
       }
     } finally {
       setLoading(false)

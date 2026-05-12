@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import type { Faculty } from '@/types/faculty'
 import { fetchFaculties, createCourse } from '@/api/courses'
 import { ApiError } from '@/api/client'
+import { pickError } from '@/lib/humanErrors'
 import { IconBack, IconCheck, IconExternal } from '@/components/Icons'
 import { useDataRefresh } from '@/context/DataRefreshContext'
 
@@ -43,7 +44,14 @@ export function CreateCoursePage() {
       bump('courses')
       navigate(`/courses/${course.id}`)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'เกิดข้อผิดพลาด กรุณาลองใหม่')
+      if (err instanceof ApiError) {
+        if (err.status === 409) setError(pickError('COURSE_ALREADY_EXISTS'))
+        else if (err.status === 429) setError(pickError('RATE_LIMITED'))
+        else if (err.status >= 400 && err.status < 500) setError(pickError('REQUIRED_FIELD_MISSING'))
+        else setError(pickError('SUBMIT_FAILED'))
+      } else {
+        setError(pickError('NETWORK_ERROR'))
+      }
     } finally {
       setSubmitting(false)
     }
