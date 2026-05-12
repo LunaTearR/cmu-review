@@ -78,6 +78,7 @@ Base path: `/api/v1`
 |--------|------|-------------|
 | GET | `/healthz` | Health check |
 | GET | `/api/v1/faculties` | List CMU faculties (Redis-cached) |
+| GET | `/api/v1/programs` | List distinct program types from reviews (powers "ประเภทหลักสูตร" filter) |
 | GET | `/api/v1/courses` | List / search courses |
 | POST | `/api/v1/courses` | Create a course |
 | GET | `/api/v1/courses/:id` | Get a single course |
@@ -86,9 +87,9 @@ Base path: `/api/v1`
 
 ### GET /api/v1/courses
 
-Query params: `search`, `faculty` (code), `credits`, `category`, `sort` (`code` \| `rating` \| `reviews`), `page`, `limit`.
+Query params: `search`, `faculty` (code), `credits`, `category`, `program` (CSV — e.g. `ภาคปกติ,นานาชาติ`), `sort` (`code` \| `rating` \| `reviews`), `page`, `limit`.
 
-Search matches course code, Thai name, and English name (full-text + ILIKE fallback). `category` filters by review.category EXISTS subquery.
+Search matches course code, Thai name, and English name (full-text + ILIKE fallback). `category` and `program` filter by review.category / review.program via EXISTS subquery. Frontend "อื่นๆ" checkbox is a synthetic option — `resolveCourseTypes(selected, allPrograms)` expands it into all distinct programs not in `['ภาคปกติ', 'ภาคพิเศษ', 'นานาชาติ']` before sending.
 
 ### POST /api/v1/courses
 

@@ -124,6 +124,7 @@ type ReviewRepository interface {
     Create(ctx context.Context, r *entity.Review) (*entity.Review, error)
     ListByCourse(ctx context.Context, courseID int, opts ListOpts) ([]entity.Review, int, error)
     CountRecentByHash(ctx context.Context, ipHash string, since time.Time) (int, error)
+    ListDistinctPrograms(ctx context.Context) ([]string, error)   // distinct reviews.program for filter UI
 }
 
 type ListOpts struct {
@@ -133,13 +134,14 @@ type ListOpts struct {
 
 // internal/domain/repository/course_repository.go
 type CourseListOpts struct {
-    Search   string
-    Faculty  string
-    Credits  int    // 0 = all
-    Category string // filters via EXISTS on review.category
-    SortBy   string
-    Limit    int
-    Offset   int
+    Search    string
+    Faculties []string  // empty = all
+    Credits   int       // 0 = all
+    Category  string    // filters via EXISTS on review.category
+    Programs  []string  // filters via EXISTS on review.program = ANY(...)
+    SortBy    string
+    Limit     int
+    Offset    int
 }
 
 type CourseRepository interface {
@@ -358,6 +360,7 @@ func Register(r *gin.Engine,
     v1.GET("/courses/:id/reviews",  reviewHandler.List)
     v1.POST("/courses/:id/reviews", reviewHandler.Create)
     v1.GET("/faculties",            facultyHandler.List)
+    v1.GET("/programs",             reviewHandler.ListPrograms)
 }
 ```
 
@@ -446,6 +449,21 @@ AND ($category = '' OR EXISTS (
       AND NOT rv2.is_hidden
 ))
 ```
+
+### Program filter via EXISTS (multi-select)
+
+Same shape as category, but multi-valued. Pass `pq.Array(programs)` as bound param:
+
+```sql
+AND (cardinality($programs::text[]) = 0 OR EXISTS (
+    SELECT 1 FROM reviews rv3
+    WHERE rv3.course_id = c.id
+      AND rv3.program = ANY($programs::text[])
+      AND NOT rv3.is_hidden
+))
+```
+
+Handler parses comma-separated `?program=ภาคปกติ,นานาชาติ` → `[]string` → `repo.List(opts)`. Frontend uses `resolveCourseTypes()` to expand the synthetic "อื่นๆ" selection before sending; if the resolved list covers every known program, the param is omitted (no filter).
 
 ### Aggregates inline
 
@@ -574,7 +592,29 @@ useEffect(() => { loadInitial() }, [loadInitial, coursesV])
 - All HTTP via `src/api/client.ts`. Never call `fetch` directly from components.
 - Base path: `VITE_API_BASE_URL` env var (baked at Vite build time) falling back to `/api/v1`.
 - Throws `ApiError` (not plain `Error`) on non-2xx.
-- When backend returns `{data: T[]}` envelope, unwrap in the API module — callers receive concrete type.
+- When backend returns `{data: T[]}` envelope, unwrap in the API module — callers receive concrete type. Examples: `fetchFaculties()`, `fetchPrograms()`.
+
+### Synthetic "อื่นๆ" filter — resolveCourseTypes
+
+The `ประเภทหลักสูตร` (course type) checkbox group includes a synthetic "อื่นๆ" option that does NOT correspond to a literal DB value. Helper in `pages/CourseListPage.tsx`:
+
+```ts
+const MAIN_PROGRAMS = ['ภาคปกติ', 'ภาคพิเศษ', 'นานาชาติ']
+const OTHER_PROGRAM = 'อื่นๆ'
+
+export function resolveCourseTypes(selected: string[], allCourseTypes: string[]): string[] {
+  if (selected.length === 0) return []
+  const hasOther = selected.includes(OTHER_PROGRAM)
+  const mains = selected.filter(s => s !== OTHER_PROGRAM)
+  if (!hasOther) return mains
+  // main 3 + อื่นๆ → covers everything → drop filter
+  if (MAIN_PROGRAMS.every(m => mains.includes(m))) return []
+  const others = allCourseTypes.filter(p => !MAIN_PROGRAMS.includes(p))
+  return Array.from(new Set([...mains, ...others]))
+}
+```
+
+`allCourseTypes` comes from `fetchPrograms()` (mounted once via `useEffect`). The resolved list is joined into `apiFilters.program` (CSV); when `resolved.length === 0` while `selected.length > 0`, the API param is sent empty (= no filter).
 
 ### CourseFilterPanel + drawer pattern
 
