@@ -41,4 +41,5 @@ func Register(
 	v1.POST("/courses/:id/reviews", reviewHandler.Create)
 
 	v1.GET("/faculties", facultyHandler.List)
+	v1.GET("/programs", reviewHandler.ListPrograms)
 }

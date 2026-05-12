@@ -11,6 +11,7 @@ type ReviewRepository interface {
 	Create(ctx context.Context, r *entity.Review) (*entity.Review, error)
 	ListByCourse(ctx context.Context, courseID int, opts ListOpts) ([]entity.Review, int, error)
 	CountRecentByHash(ctx context.Context, ipHash string, since time.Time) (int, error)
+	ListDistinctPrograms(ctx context.Context) ([]string, error)
 }
 
 type ListOpts struct {

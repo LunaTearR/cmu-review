@@ -14,15 +14,29 @@ import (
 )
 
 type ReviewHandler struct {
-	create *reviewuc.CreateReviewUseCase
-	list   *reviewuc.ListReviewsByCourseUseCase
+	create       *reviewuc.CreateReviewUseCase
+	list         *reviewuc.ListReviewsByCourseUseCase
+	listPrograms *reviewuc.ListProgramsUseCase
 }
 
 func NewReviewHandler(
 	create *reviewuc.CreateReviewUseCase,
 	list *reviewuc.ListReviewsByCourseUseCase,
+	listPrograms *reviewuc.ListProgramsUseCase,
 ) *ReviewHandler {
-	return &ReviewHandler{create: create, list: list}
+	return &ReviewHandler{create: create, list: list, listPrograms: listPrograms}
+}
+
+func (h *ReviewHandler) ListPrograms(c *gin.Context) {
+	programs, err := h.listPrograms.Execute(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+	if programs == nil {
+		programs = []string{}
+	}
+	c.JSON(http.StatusOK, gin.H{"data": programs})
 }
 
 func (h *ReviewHandler) Create(c *gin.Context) {

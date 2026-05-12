@@ -6,6 +6,7 @@ export interface CourseListParams {
   faculty?: string
   credits?: number
   category?: string
+  program?: string
   sort?: string
   search?: string
   page?: number
@@ -17,6 +18,7 @@ function toQuery(params: CourseListParams): string {
   if (params.faculty)           q.set('faculty', params.faculty)
   if (params.credits)           q.set('credits', String(params.credits))
   if (params.category)          q.set('category', params.category)
+  if (params.program)           q.set('program', params.program)
   if (params.sort)              q.set('sort', params.sort)
   if (params.search)            q.set('search', params.search)
   if (params.page)              q.set('page', String(params.page))
@@ -27,6 +29,9 @@ function toQuery(params: CourseListParams): string {
 
 export const fetchFaculties = (): Promise<Faculty[]> =>
   get<{ data: Faculty[] }>('/faculties').then(r => r.data)
+
+export const fetchPrograms = (): Promise<string[]> =>
+  get<{ data: string[] }>('/programs').then(r => r.data)
 
 export const fetchCourses = (params: CourseListParams = {}): Promise<CourseListResponse> =>
   get<CourseListResponse>(`/courses${toQuery(params)}`)
