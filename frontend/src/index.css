@@ -527,8 +527,8 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 }
 .paw-rating .pr-toe.is-on,
 .paw-rating .pr-pad.is-on { fill: var(--accent-rose); }
-[data-theme="dark"] .paw-rating .pr-toe,
-[data-theme="dark"] .paw-rating .pr-pad {
+[data-theme="dark"] .paw-rating .pr-toe:not(.is-on),
+[data-theme="dark"] .paw-rating .pr-pad:not(.is-on) {
   fill: color-mix(in oklab, var(--ink-4) 35%, transparent);
 }
 .paw-rating-row.is-input { gap: 6px; }
