@@ -1,5 +1,5 @@
 import type { Review } from '@/types/review'
-import { Rating } from './Rating'
+import { PawRating } from './PawRating'
 
 interface Props {
   review: Review
@@ -38,7 +38,7 @@ export function ReviewCard({ review, onClick }: Props) {
             <div className="caption">เรียนเมื่อ {SEMESTER_LABEL[review.semester] ?? `ภาค ${review.semester}`}/{review.academic_year}</div>
           </div>
         </div>
-        <Rating value={review.rating} size="lg" />
+        <PawRating value={review.rating} size={22} />
       </div>
 
       <div className="review-meta-chips">

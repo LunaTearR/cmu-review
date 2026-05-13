@@ -308,37 +308,6 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
   box-shadow: var(--shadow-sm);
 }
 
-/* ── heart rating ───────────────────────────────────────────────── */
-.heart-rating { display: inline-flex; gap: 3px; align-items: center; }
-.heart-rating .heart {
-  width: 18px; height: 18px;
-  color: var(--border-strong);
-  transition: color 0.16s var(--t-easing), transform 0.16s var(--t-easing);
-  display: inline-flex;
-}
-.heart-rating .heart.is-filled { color: var(--accent-rose); }
-.heart-rating .heart.is-half   { color: var(--accent-rose); }
-.heart-rating.is-input .heart  { cursor: pointer; width: 28px; height: 28px; }
-.heart-rating.is-input .heart:hover { transform: scale(1.1); }
-.heart-rating.is-lg .heart { width: 24px; height: 24px; }
-.heart-rating .heart svg { width: 100%; height: 100%; display: block; }
-.heart-rating .paw-half {
-  position: relative;
-  display: block;
-  width: 100%; height: 100%;
-}
-.heart-rating .paw-half .paw-base {
-  width: 100%; height: 100%;
-  color: var(--border-strong);
-}
-.heart-rating .paw-half .paw-clip {
-  position: absolute; inset: 0;
-  width: 50%; height: 100%;
-  overflow: hidden;
-  color: var(--accent-rose);
-}
-.heart-rating .paw-half .paw-clip svg { width: 200%; height: 100%; }
-
 /* ── recommendation bar ─────────────────────────────────────────── */
 .recbar {
   position: relative;
@@ -536,7 +505,7 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
   background-color: var(--brand-deep);
   -webkit-mask: var(--paw-mask) center / contain no-repeat;
           mask: var(--paw-mask) center / contain no-repeat;
-  --paw-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><ellipse cx='32' cy='42' rx='15' ry='13'/><ellipse cx='12' cy='24' rx='6.5' ry='8'/><ellipse cx='24' cy='13' rx='6' ry='8'/><ellipse cx='40' cy='13' rx='6' ry='8'/><ellipse cx='52' cy='24' rx='6.5' ry='8'/></svg>");
+  --paw-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><path d='M226.5 92.9c14.3 42.9-.3 86.2-32.6 96.8s-70.1-15.6-84.4-58.5.3-86.2 32.6-96.8 70.1 15.6 84.4 58.5zM100.4 198.6c18.9 32.4 14.3 70.1-10.2 84.1s-59.7-1-78.5-33.4S-2.7 179.2 21.8 165.2s59.7 1 78.5 33.4zM69.2 401.2C121.6 259.9 214.7 224 256 224s134.4 35.9 186.8 177.2c3.6 9.7 5.2 20.1 5.2 30.5v1.6c0 25.8-20.9 46.7-46.7 46.7-11.5 0-22.9-1.4-34-4.2l-88-22c-15.3-3.8-31.3-3.8-46.6 0l-88 22c-11.1 2.8-22.5 4.2-34 4.2C84.9 480 64 459.1 64 433.3v-1.6c0-10.4 1.6-20.8 5.2-30.5zM421.8 282.7c-24.5-14-29.1-51.7-10.2-84.1s54-47.4 78.5-33.4 29.1 51.7 10.2 84.1-54 47.4-78.5 33.4zM310.1 189.7c-32.3-10.6-46.9-53.9-32.6-96.8s52.1-69.1 84.4-58.5 46.9 53.9 32.6 96.8-52.1 69.1-84.4 58.5z'/></svg>");
   will-change: transform;
 }
 [data-theme="dark"] .paw { background-color: var(--brand-soft); }
@@ -544,6 +513,30 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 /* sections that host paw scatters need clip + stacking context */
 .section--pawed { position: relative; overflow: hidden; }
 .section--pawed > .shell { position: relative; z-index: 1; }
+
+/* ── paw rating (CourseCard variant) ────────────────────────────── */
+.paw-rating-row {
+  display: inline-flex; align-items: center; gap: 3px;
+  flex-shrink: 0;
+}
+.paw-rating { display: block; flex-shrink: 0; }
+.paw-rating .pr-toe,
+.paw-rating .pr-pad {
+  fill: color-mix(in oklab, var(--ink-4) 22%, transparent);
+  transition: fill 0.25s var(--t-easing);
+}
+.paw-rating .pr-toe.is-on,
+.paw-rating .pr-pad.is-on { fill: var(--accent-rose); }
+[data-theme="dark"] .paw-rating .pr-toe,
+[data-theme="dark"] .paw-rating .pr-pad {
+  fill: color-mix(in oklab, var(--ink-4) 35%, transparent);
+}
+.paw-rating-row.is-input { gap: 6px; }
+.paw-rating-row.is-input .pr-slot {
+  cursor: pointer; display: inline-flex;
+  transition: transform 0.16s var(--t-easing);
+}
+.paw-rating-row.is-input .pr-slot:hover { transform: scale(1.12); }
 @media (max-width: 768px) {
   .paw-scatter .paw { transform-origin: center; }
 }

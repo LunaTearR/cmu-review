@@ -18,32 +18,37 @@ frontend  — nginx + Vite dist (cmu_review_frontend,  port 8000)
 All commands run from the project root via `make`. Run `make help` for the full list.
 
 ```bash
-# Docker
+# Dev stack (Docker w/ hot reload — preferred for daily development)
+make dev                           # docker compose -f docker-compose.dev.yml up -d
+make dev-build                     # rebuild dev images and start
+make dev-down                      # stop dev services
+make dev-logs                      # tail dev logs; make dev-logs svc=backend
+make dev-migrate-up                # apply pending migrations on dev stack
+make dev-migrate-down              # roll back 1 migration on dev stack
+make dev-seed-faculties            # seed CMU faculties on dev stack
+
+# Prod stack (compiled binaries, no hot reload)
 make up / down / restart / build
 make logs                          # all services; make logs svc=api
 make db-shell                      # psql into running postgres container
 
-# Backend (runs inside ./backend — local dev only)
+# Backend (runs inside ./backend — bypasses Docker; needs Go on host)
 make api-run                       # go run ./cmd/main.go
+make api-dev                       # air hot reload (requires air install)
 make api-build                     # compiles to backend/bin/server
 make api-tidy                      # go mod tidy
 make api-lint                      # go vet ./...
 
-# Frontend (runs inside ./frontend — local dev only)
+# Frontend (runs inside ./frontend — bypasses Docker; needs Node on host)
 make fe-install / fe-dev / fe-build
 
-# Migrations (exec into running backend container)
-make migrate-up                    # docker compose exec backend /app/migrate up
-make migrate-down                  # docker compose exec backend /app/migrate down (1 step)
+# Migrations
+make migrate-up                    # prod: docker compose exec backend /app/migrate up
+make migrate-down                  # prod: roll back 1 step
 make migrate-create name=add_foo   # generates up/down SQL pair (runs locally)
-make dev-migrate-up                # same for dev stack (go run, no compiled binary)
-make dev-migrate-down              # same for down
 
 # Seed
-make seed-faculties                # docker compose exec backend /app/seed
-
-# Dev shortcut (local — needs Go + Node on host)
-make dev                           # docker up + api-run + fe-dev in parallel
+make seed-faculties                # prod: docker compose exec backend /app/seed
 ```
 
 There are no automated tests yet.
@@ -136,7 +141,7 @@ Beyond core rating/content, reviews carry optional metadata (migration 000004):
 - `professor` — lecturer name
 - `reviewer_name` — optional display nickname (stored, never verified)
 
-Rating accepts decimal values (0.5 increments, 1.0–5.0) for half-heart UI support.
+Rating accepts decimal values (1.0–5.0). Frontend submits integer 1–5 via the paw-rating input; averages render as fractional paws (per-finger fill).
 
 ### Adding a new use case
 
@@ -201,13 +206,14 @@ frontend/src/
   components/
     Layout.tsx                # sticky lavender nav + dark mode toggle + footer
     Icons.tsx                 # SVG icon set (Heart, Search, Pen, Filter, Menu, ...)
-    Rating.tsx                # heart-rating w/ half-fill SVG + half-click via mouse offsetX
-    CourseCard.tsx            # design-spec .course-card
-    CourseRow.tsx             # compact list density variant
+    PawRating.tsx             # FA-paw rating — 4 toes + pad. Display = fractional fingers; input = whole-paw click
+    PawScatter.tsx             # deterministic decorative paw watermarks (seeded, anti-overlap)
+    CourseCard.tsx            # design-spec .course-card (renders PawRating)
+    CourseRow.tsx             # compact list density variant (renders PawRating)
     CourseFilterPanel.tsx     # extracted filter aside (variant: inline | drawer)
     ReviewCard.tsx            # .review block w/ avatar + grade-color tags + clickable
     ReviewModal.tsx           # full review detail (portal, ESC/backdrop close, scroll lock)
-    ReviewForm.tsx            # sectioned form, half-heart input, char counter
+    ReviewForm.tsx            # sectioned form, paw-rating input, char counter
     ReviewModalForm.tsx       # wraps ReviewForm w/ course picker (used inside global modal)
     SearchableSelect.tsx      # typeahead dropdown (≥6 options shows search input)
   index.css                   # full design system (lavender tokens + utility classes)
@@ -269,9 +275,17 @@ All filter dropdowns use `SearchableSelect`. Shows a search input when `options.
 - `ReviewModal` — read-only display of single review. Portal to body. ESC/backdrop close.
 - `ReviewModalForm` — write form inside global review modal (managed by `ReviewModalContext`). Wraps `ReviewForm` w/ course picker.
 
-### Rating component
+### PawRating component
 
-Half-heart click support: `onMouseMove` + `onClick` use `event.clientX - rect.left` to determine left vs right half of each heart. Returns `i + 0.5` or `i + 1`. Display renders filled / half-fill SVG gradient / outline based on display value.
+Row of 5 Font-Awesome paws (4 toes + pad each). Replaces the prior `Rating` (hearts) — that component was removed.
+
+- **Display**: whole rating-point fills a whole paw (4 toes + pad). Fractional remainder maps to fingers via 0.25 buckets — `(0, 0.25] → 1`, `(0.25, 0.5] → 2`, `(0.5, 0.75] → 3`, `(0.75, 1.0) → 4`. Pad lights on any partial paw with ≥ 1 toe lit. Lit fill = `--accent-rose`.
+- **Input**: pass `onChange` to make interactive. Whole-paw click sets integer 1–`max` (no per-finger click input).
+- File: `components/PawRating.tsx`.
+
+### PawScatter component
+
+Decorative paw watermarks used as section backgrounds. Seeded deterministic PRNG (`mulberry32`) places `count` paws inside `.section--pawed` containers; anti-overlap rejection sampling keeps paws from colliding. Same `seed` → identical layout across renders/reloads. File: `components/PawScatter.tsx`.
 
 ### Theme
 

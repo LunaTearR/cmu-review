@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { Review } from '@/types/review'
-import { Rating } from './Rating'
+import { PawRating } from './PawRating'
 import { IconClose } from './Icons'
 
 interface Props {
@@ -82,7 +82,7 @@ export function ReviewModal({ review, courseCode, courseName, onClose }: Props) 
               <div className="caption">{SEMESTER_LABEL[displayed.semester] ?? `ภาค ${displayed.semester}`}/{displayed.academic_year} · {date}</div>
             </div>
           </div>
-          <Rating value={displayed.rating} size="lg" />
+          <PawRating value={displayed.rating} size={24} />
         </div>
 
         <div className="review-meta-chips" style={{ marginBottom: 16 }}>

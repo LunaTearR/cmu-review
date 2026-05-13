@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { CreateReviewPayload } from '@/types/review'
-import { Rating } from './Rating'
+import { PawRating } from './PawRating'
 import { ApiError } from '@/api/client'
 import { pickError } from '@/lib/humanErrors'
 import { IconCheck } from './Icons'
@@ -68,7 +68,7 @@ export function ReviewForm({ courseId: _courseId, onSubmit, onCancel }: Props) {
 
   const validateField = (key: ReviewFieldKey): string => {
     switch (key) {
-      case 'rating': return rating > 0 ? '' : 'อย่าลืมแตะหัวใจให้คะแนนนะ'
+      case 'rating': return rating > 0 ? '' : 'อย่าลืมแตะอุ้งเท้าให้คะแนนนะ'
       case 'grade': return grade ? '' : 'เลือกเกรดที่ได้ด้วยน้า'
       case 'academicYear': {
         const n = Number(academicYear)
@@ -179,10 +179,10 @@ export function ReviewForm({ courseId: _courseId, onSubmit, onCancel }: Props) {
         <div className="field" style={{ alignItems: 'center', textAlign: 'center', background: 'var(--bg-soft)', padding: 28, borderRadius: 'var(--r-lg)' }}>
           <label className="field-label" style={{ marginBottom: 4 }}>แนะนำให้คนอื่นลงเรียนไหม <span className="req">*</span></label>
           <div style={{ marginTop: 6 }}>
-            <Rating value={rating} onChange={setRating} />
+            <PawRating value={rating} onChange={setRating} size={32} />
           </div>
           <div className="body-sm" style={{ marginTop: 10, minHeight: 22, fontWeight: 600, color: 'var(--brand-deep)' }}>
-            {rating ? RATING_LABELS[rating] : 'แตะหัวใจเพื่อให้คะแนน'}
+            {rating ? RATING_LABELS[rating] : 'แตะอุ้งเท้าเพื่อให้คะแนน'}
           </div>
         </div>
       </div>

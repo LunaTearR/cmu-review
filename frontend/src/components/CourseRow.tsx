@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { Course } from '@/types/course'
-import { Rating } from './Rating'
+import { PawRating } from './PawRating'
 
 interface Props {
   course: Course
@@ -19,7 +19,7 @@ export function CourseRow({ course }: Props) {
         </div>
         <span className="tag tag-brand">{course.credits} หน่วยกิต</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 130, justifyContent: 'flex-end' }}>
-          <Rating value={course.avg_rating} />
+          <PawRating value={course.avg_rating} />
           <span className="caption" style={{ minWidth: 56, textAlign: 'right' }}>
             {course.review_count} รีวิว
           </span>

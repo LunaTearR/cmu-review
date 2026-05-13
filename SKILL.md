@@ -4,6 +4,40 @@ Technical playbook for Claude Code working in this repository. Describes pattern
 
 ---
 
+## 0. Make Commands (cheat sheet)
+
+Everything runs in Docker. Daily dev uses the `dev` stack (hot reload).
+
+```bash
+# Dev stack — hot reload (preferred for development)
+make dev                           # start dev stack (docker compose -f docker-compose.dev.yml up -d)
+make dev-build                     # rebuild dev images + start
+make dev-down                      # stop dev services
+make dev-logs                      # tail logs; make dev-logs svc=backend
+make dev-migrate-up                # apply migrations on dev stack
+make dev-migrate-down              # roll back 1 migration on dev stack
+make dev-seed-faculties            # seed faculties on dev stack
+
+# Prod stack — compiled binaries
+make up / down / restart / build
+make logs                          # all services; make logs svc=api
+make migrate-up / migrate-down     # prod migrations
+make seed-faculties                # prod seed
+
+# Shared
+make migrate-create name=add_foo   # generate up/down SQL pair
+make db-shell                      # psql into postgres container
+make help                          # full target list
+
+# Local-host (bypasses Docker — needs Go / Node installed natively)
+make api-run / api-dev / api-build / api-tidy / api-lint
+make fe-install / fe-dev / fe-build
+```
+
+`make dev` is the entry point for almost everything. Run it once, then issue `make dev-migrate-up` + `make dev-seed-faculties` on a clean DB.
+
+---
+
 ## 1. Clean Architecture — Dependency Rule
 
 ```
@@ -644,22 +678,45 @@ CSS hides whichever variant doesn't match viewport. Drawer (`variant="drawer"`) 
 }
 ```
 
-### Rating component (half-heart)
+### PawRating component (replaces the removed `Rating`)
 
-`event.clientX - rect.left < rect.width / 2` decides half vs whole on each heart. Returns `i + 0.5` or `i + 1`.
+Row of 5 Font-Awesome paws (4 toes + 1 pad). Old hearts-based `Rating.tsx` is gone — everywhere ratings render uses `PawRating`.
 
-```tsx
-const halfFromEvent = (e: React.MouseEvent<HTMLSpanElement>, i: number): number => {
-  const rect = e.currentTarget.getBoundingClientRect()
-  const x = e.clientX - rect.left
-  return x < rect.width / 2 ? i + 0.5 : i + 1
+**Display mode** — fractional fingers per 0.25 bucket:
+
+```ts
+function fingersForFrac(frac: number): number {
+  if (frac <= 0)    return 0
+  if (frac <= 0.25) return 1
+  if (frac <= 0.50) return 2
+  if (frac <= 0.75) return 3
+  return 4
 }
-
-onMouseMove={interactive ? (e) => setHover(halfFromEvent(e, i)) : undefined}
-onClick={interactive ? (e) => onChange?.(halfFromEvent(e, i)) : undefined}
+// rating 4.3 → 4 full paws + 5th paw with 2 toes lit (pad on, since fingers ≥ 1).
 ```
 
-Display renders filled / half-fill SVG gradient / outline by checking `display - i >= 0.5`.
+Pad lights when paw has ≥ 1 toe lit. Lit fill = `--accent-rose`; empty = greyed via `color-mix(in oklab, var(--ink-4) 22%, transparent)`.
+
+**Interactive mode** — pass `onChange` to enable. Whole-paw click only (no per-finger click input):
+
+```tsx
+<PawRating value={rating} onChange={setRating} size={32} />
+```
+
+Hover preview lights paws up to hovered index; click sets integer 1–`max`. `.pr-slot` gets `cursor: pointer` + 1.12× hover scale via `.paw-rating-row.is-input`.
+
+### PawScatter component (decorative watermarks)
+
+Used as section backgrounds (hero, top-rated, free-elective, faculty). Seeded `mulberry32` PRNG + rejection sampling for anti-overlap. Same seed → same layout across reloads.
+
+```tsx
+<section className="section section--pawed">
+  <PawScatter count={2} seed={117} sizeMin={400} sizeMax={640} />
+  <div className="shell">...</div>
+</section>
+```
+
+Section needs `.section--pawed` (adds `position: relative; overflow: hidden` + raises `.shell` z-index). To regenerate layout: change `seed`. To resize: pass `sizeMin`/`sizeMax`. To space more: pass `spacing={0.6}` (default `0.55`).
 
 ### Styling
 
@@ -672,7 +729,7 @@ Class-based design system in `src/index.css`. Tokens in `:root` (light) and `[da
 - `--r-sm` through `--r-pill` (radius scale)
 - `--font-thai`, `--font-display`, `--font-mono`
 
-Utility classes: `.btn`, `.btn-primary/-ghost/-soft`, `.tag`, `.chip`, `.card`, `.input`, `.field`, `.seg`, `.form-row`, `.form-row-3`, `.form-actions`, `.heart-rating`, `.review`, `.course-card`, `.search-hero`, `.filter-panel`, `.responsive-grid-2/-3`, plus responsive helpers (`.line-clamp-N`, `.truncate`, `.shell`, `.shell-narrow`).
+Utility classes: `.btn`, `.btn-primary/-ghost/-soft`, `.tag`, `.chip`, `.card`, `.input`, `.field`, `.seg`, `.form-row`, `.form-row-3`, `.form-actions`, `.paw-rating-row` (+ `.is-input`), `.paw-scatter`, `.section--pawed`, `.review`, `.course-card`, `.search-hero`, `.filter-panel`, `.responsive-grid-2/-3`, plus responsive helpers (`.line-clamp-N`, `.truncate`, `.shell`, `.shell-narrow`).
 
 Theme persistence: `Layout.tsx` toggles `data-theme="dark"` on `<html>` and writes to localStorage.
 
