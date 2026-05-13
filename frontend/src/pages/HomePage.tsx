@@ -4,9 +4,12 @@ import type { Course } from '@/types/course'
 import type { Faculty } from '@/types/faculty'
 import { fetchCourses, fetchFaculties } from '@/api/courses'
 import { CourseCard } from '@/components/CourseCard'
+import { PawScatter } from '@/components/PawScatter'
 import { IconSearch, IconArrow, IconPen, IconBuilding } from '@/components/Icons'
 import { useReviewModal } from '@/context/ReviewModalContext'
 import { useDataRefresh } from '@/context/DataRefreshContext'
+
+const FREE_ELECTIVE = 'หมวดวิชาฟรี'
 
 export function HomePage() {
   const navigate = useNavigate()
@@ -14,11 +17,18 @@ export function HomePage() {
   const { coursesV } = useDataRefresh()
   const [query, setQuery] = useState('')
   const [topCourses, setTopCourses] = useState<Course[]>([])
+  const [topFreeElectives, setTopFreeElectives] = useState<Course[]>([])
   const [faculties, setFaculties] = useState<Faculty[]>([])
 
   useEffect(() => {
-    fetchCourses({ sort: 'rating', limit: 6, page: 1 })
+    fetchCourses({ sort: 'rating', limit: 8, page: 1 })
       .then(r => setTopCourses(r.data))
+      .catch(console.error)
+  }, [coursesV])
+
+  useEffect(() => {
+    fetchCourses({ category: FREE_ELECTIVE, sort: 'rating', limit: 8, page: 1 })
+      .then(r => setTopFreeElectives(r.data))
       .catch(console.error)
   }, [coursesV])
 
@@ -34,6 +44,7 @@ export function HomePage() {
     <div className="fade-in">
       <section className="hero">
         <div className="hero-bg" />
+        <PawScatter count={2} seed={40} sizeMin={380} sizeMax={620} />
         <div className="shell hero-content">
           <h1 className="hero-title">
             หาวิชาที่ใช่<br />
@@ -57,8 +68,29 @@ export function HomePage() {
         </div>
       </section>
 
+      {topFreeElectives.length > 0 && (
+        <section className="section section--pawed">
+          <PawScatter count={2} seed={119} sizeMin={400} sizeMax={640} />
+          <div className="shell">
+            <div className="section-head">
+              <div>
+                <div className="eyebrow">หมวดวิชาเลือกเสรี</div>
+                <h2 className="h-1">วิชาฟรียอดนิยมตอนนี้</h2>
+              </div>
+              <Link to={`/search?category=${encodeURIComponent(FREE_ELECTIVE)}`} className="btn btn-ghost btn-sm">
+                ดูหมวดวิชาฟรีทั้งหมด <IconArrow />
+              </Link>
+            </div>
+            <div className="responsive-grid-3">
+              {topFreeElectives.map(c => <CourseCard key={c.id} course={c} />)}
+            </div>
+          </div>
+        </section>
+      )}
+
       {topCourses.length > 0 && (
-        <section className="section" style={{ background: 'var(--bg-soft)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
+        <section className="section section--pawed" style={{ background: 'var(--bg-soft)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
+          <PawScatter count={2} seed={263} sizeMin={380} sizeMax={620} />
           <div className="shell">
             <div className="section-head">
               <div>
@@ -66,7 +98,7 @@ export function HomePage() {
                 <h2 className="h-1">วิชาที่รีวิวดีสุดตอนนี้</h2>
               </div>
               <Link to="/search" className="btn btn-ghost btn-sm">
-                ดูทั้งหมด <IconArrow />
+                ดูรีวิวทั้งหมด <IconArrow />
               </Link>
             </div>
             <div className="responsive-grid-3">
@@ -77,7 +109,8 @@ export function HomePage() {
       )}
 
       {faculties.length > 0 && (
-        <section className="section">
+        <section className="section section--pawed">
+          <PawScatter count={2} seed={511} sizeMin={420} sizeMax={660} />
           <div className="shell">
             <div className="section-head">
               <div>

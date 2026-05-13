@@ -46,11 +46,13 @@ export function CourseListPage() {
   const initialFaculty = params.get('faculty') ?? ''
   // strip legacy comma-separated values: keep only first code
   const initialFacCode = initialFaculty.split(',').filter(Boolean)[0] ?? ''
+  const initialCategory = params.get('category') ?? ''
+  const initialCats = initialCategory && CATEGORIES.includes(initialCategory) ? [initialCategory] : []
 
   const [searchInput, setSearchInput] = useState(initialQuery)
   const [query, setQuery] = useState(initialQuery)
   const [facCode, setFacCode] = useState<string>(initialFacCode)
-  const [cats, setCats] = useState<string[]>([])
+  const [cats, setCats] = useState<string[]>(initialCats)
   const [credits, setCredits] = useState<number[]>([])
   const [programs, setPrograms] = useState<string[]>([])
   const [sort, setSort] = useState<'rating' | 'reviews' | 'code'>('rating')
@@ -120,8 +122,9 @@ export function CourseListPage() {
     const p = new URLSearchParams()
     if (query) p.set('q', query)
     if (facCode) p.set('faculty', facCode)
+    if (cats[0]) p.set('category', cats[0])
     setParams(p, { replace: true })
-  }, [query, facCode, setParams])
+  }, [query, facCode, cats, setParams])
 
   const loadMore = async () => {
     setLoadingMore(true)
