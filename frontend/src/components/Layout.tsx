@@ -1,6 +1,6 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { IconSearch, IconPlus, IconPen, IconSun, IconMoon } from './Icons'
+import { IconPlus, IconPen, IconSun, IconMoon } from './Icons'
 import { useReviewModal } from '@/context/ReviewModalContext'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faBookOpen } from '@fortawesome/free-solid-svg-icons'
@@ -11,7 +11,6 @@ interface Props {
 
 export function Layout({ children }: Props) {
   const loc = useLocation()
-  const navigate = useNavigate()
   const { open: openReview } = useReviewModal()
   const [dark, setDark] = useState<boolean>(() => localStorage.getItem('theme') === 'dark')
 
@@ -19,8 +18,6 @@ export function Layout({ children }: Props) {
     document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light')
     localStorage.setItem('theme', dark ? 'dark' : 'light')
   }, [dark])
-
-  const isHome = loc.pathname === '/'
 
   // forward active faculty filter from /search → /courses/new so faculty pre-fills
   const activeFaculty = new URLSearchParams(loc.search).get('faculty') ?? ''
@@ -38,12 +35,6 @@ export function Layout({ children }: Props) {
           </Link>
 
           <div className="nav-actions">
-            {/* {!isHome && (
-              <button className="nav-search-mini" onClick={() => navigate('/search')}>
-                <IconSearch width="15" height="15" />
-                <span>ค้นหารหัสวิชา / ชื่อวิชา</span>
-              </button>
-            )} */}
             <Link to={addCourseHref} className="btn btn-ghost btn-sm" aria-label="เพิ่มวิชา">
               <IconPlus /> <span className="nav-text">เพิ่มวิชา</span>
             </Link>
