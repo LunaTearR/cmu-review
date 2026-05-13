@@ -20,6 +20,27 @@ export interface CourseListResponse {
   limit: number
 }
 
+export interface CourseInsightTag {
+  tag: string
+  count: number
+  percentage: number
+}
+
+export interface CourseInsightGroup {
+  key: string
+  title: string
+  base: number
+  tags: CourseInsightTag[]
+}
+
+export interface CourseInsight {
+  total_reviews: number
+  min_reviews_for_stats: number
+  groups: CourseInsightGroup[]
+  badges: string[]
+  warnings: string[]
+}
+
 export interface CreateCoursePayload {
   course_id: string
   name_th: string

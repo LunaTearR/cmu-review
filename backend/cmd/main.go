@@ -85,13 +85,14 @@ func main() {
 	createCourse := courseuc.NewCreateCourse(courseRepo)
 	listCourses := courseuc.NewListCourses(courseRepo)
 	getCourse := courseuc.NewGetCourse(courseRepo)
+	getCourseInsights := courseuc.NewGetCourseInsights(reviewRepo, courseRepo)
 	createReview := reviewuc.NewCreateReview(reviewRepo, courseRepo, spamPipeline)
 	listReviews := reviewuc.NewListReviewsByCourse(reviewRepo)
 	listPrograms := reviewuc.NewListPrograms(reviewRepo)
 	listFaculties := facultyuc.NewListFaculties(facultyRepo)
 
 	// handlers
-	courseHandler := handler.NewCourseHandler(createCourse, listCourses, getCourse)
+	courseHandler := handler.NewCourseHandler(createCourse, listCourses, getCourse, getCourseInsights)
 	reviewHandler := handler.NewReviewHandler(createReview, listReviews, listPrograms)
 	facultyHandler := handler.NewFacultyHandler(listFaculties)
 

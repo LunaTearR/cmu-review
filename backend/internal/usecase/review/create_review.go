@@ -2,12 +2,32 @@ package review
 
 import (
 	"context"
+	"strings"
 
 	"cmu-review-backend/internal/domain/entity"
 	domainerrors "cmu-review-backend/internal/domain/errors"
 	"cmu-review-backend/internal/domain/repository"
 	"cmu-review-backend/internal/usecase/port"
 )
+
+// sanitizeTags trims, drops empties, and dedupes insight tag input.
+// Returns []string{} (not nil) so the DB column receives '{}' not NULL.
+func sanitizeTags(in []string) []string {
+	out := make([]string, 0, len(in))
+	seen := make(map[string]struct{}, len(in))
+	for _, t := range in {
+		t = strings.TrimSpace(t)
+		if t == "" {
+			continue
+		}
+		if _, ok := seen[t]; ok {
+			continue
+		}
+		seen[t] = struct{}{}
+		out = append(out, t)
+	}
+	return out
+}
 
 type CreateReviewUseCase struct {
 	reviews repository.ReviewRepository
@@ -27,6 +47,7 @@ type CreateReviewInput struct {
 	Program       string
 	Professor     string
 	ReviewerName  string
+	InsightTags   []string
 	HoneypotValue string
 }
 
@@ -75,6 +96,7 @@ func (uc *CreateReviewUseCase) Execute(ctx context.Context, in CreateReviewInput
 		Program:      in.Program,
 		Professor:    in.Professor,
 		ReviewerName: in.ReviewerName,
+		InsightTags:  sanitizeTags(in.InsightTags),
 		IPHash:       in.Actor.SubmitterHash(),
 	}
 

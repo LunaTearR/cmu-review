@@ -37,6 +37,7 @@ func Register(
 	v1.GET("/courses", courseHandler.List)
 	v1.POST("/courses", courseHandler.Create)
 	v1.GET("/courses/:id", courseHandler.Get)
+	v1.GET("/courses/:id/insights", courseHandler.Insights)
 	v1.GET("/courses/:id/reviews", reviewHandler.List)
 	v1.POST("/courses/:id/reviews", reviewHandler.Create)
 

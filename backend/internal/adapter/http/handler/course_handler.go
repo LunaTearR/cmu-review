@@ -14,17 +14,19 @@ import (
 )
 
 type CourseHandler struct {
-	create *courseuc.CreateCourseUseCase
-	list   *courseuc.ListCoursesUseCase
-	get    *courseuc.GetCourseUseCase
+	create   *courseuc.CreateCourseUseCase
+	list     *courseuc.ListCoursesUseCase
+	get      *courseuc.GetCourseUseCase
+	insights *courseuc.GetCourseInsightsUseCase
 }
 
 func NewCourseHandler(
 	create *courseuc.CreateCourseUseCase,
 	list *courseuc.ListCoursesUseCase,
 	get *courseuc.GetCourseUseCase,
+	insights *courseuc.GetCourseInsightsUseCase,
 ) *CourseHandler {
-	return &CourseHandler{create: create, list: list, get: get}
+	return &CourseHandler{create: create, list: list, get: get, insights: insights}
 }
 
 func (h *CourseHandler) Create(c *gin.Context) {
@@ -107,6 +109,25 @@ func (h *CourseHandler) List(c *gin.Context) {
 		resp.Data[i] = dto.ToCourseResponse(&courses[i])
 	}
 	c.JSON(http.StatusOK, resp)
+}
+
+func (h *CourseHandler) Insights(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid course id"})
+		return
+	}
+
+	out, err := h.insights.Execute(c.Request.Context(), id)
+	if err != nil {
+		if errors.Is(err, domainerrors.ErrCourseNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+	c.JSON(http.StatusOK, dto.ToCourseInsightResponse(out))
 }
 
 func (h *CourseHandler) Get(c *gin.Context) {

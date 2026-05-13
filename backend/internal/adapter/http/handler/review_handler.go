@@ -64,6 +64,7 @@ func (h *ReviewHandler) Create(c *gin.Context) {
 		Program:       body.Program,
 		Professor:     body.Professor,
 		ReviewerName:  body.ReviewerName,
+		InsightTags:   body.InsightTags,
 		HoneypotValue: body.Website,
 	})
 	if err != nil {

@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import type { Course } from '@/types/course'
+import type { Course, CourseInsight } from '@/types/course'
 import type { Review } from '@/types/review'
-import { fetchCourse } from '@/api/courses'
+import { fetchCourse, fetchCourseInsights } from '@/api/courses'
 import { fetchReviews } from '@/api/reviews'
 import { PawRating } from '@/components/PawRating'
 import { ReviewCard } from '@/components/ReviewCard'
 import { ReviewModal } from '@/components/ReviewModal'
+import { CourseInsightPanel } from '@/components/CourseInsightPanel'
 import { IconBack, IconPen } from '@/components/Icons'
 import { useReviewModal } from '@/context/ReviewModalContext'
 import { useDataRefresh } from '@/context/DataRefreshContext'
@@ -21,6 +22,7 @@ export function CourseDetailPage() {
   const { coursesV, reviewsV } = useDataRefresh()
 
   const [course, setCourse] = useState<Course | null>(null)
+  const [insight, setInsight] = useState<CourseInsight | null>(null)
   const [reviews, setReviews] = useState<Review[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -33,6 +35,10 @@ export function CourseDetailPage() {
     setCourseLoading(true)
     fetchCourse(courseId).then(setCourse).catch(console.error).finally(() => setCourseLoading(false))
   }, [courseId, coursesV])
+
+  useEffect(() => {
+    fetchCourseInsights(courseId).then(setInsight).catch(console.error)
+  }, [courseId, reviewsV])
 
   const loadReviews = useCallback(async (p: number) => {
     setReviewsLoading(true)
@@ -203,6 +209,8 @@ export function CourseDetailPage() {
                 </>
               )}
             </div>
+
+            {insight && <CourseInsightPanel insight={insight} />}
 
             {reviews.length > 0 && (
               <div className="card card-pad">
