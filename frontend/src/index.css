@@ -525,6 +525,29 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
   opacity: 0.85;
 }
 [data-theme="dark"] .hero-bg { opacity: 0.55; }
+
+/* ── decorative paw watermarks (very faded) ─────────────────── */
+.paw-scatter {
+  position: absolute; inset: 0; z-index: 0;
+  pointer-events: none; overflow: hidden;
+}
+.paw {
+  position: absolute; display: block;
+  background-color: var(--brand-deep);
+  -webkit-mask: var(--paw-mask) center / contain no-repeat;
+          mask: var(--paw-mask) center / contain no-repeat;
+  --paw-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><ellipse cx='32' cy='42' rx='15' ry='13'/><ellipse cx='12' cy='24' rx='6.5' ry='8'/><ellipse cx='24' cy='13' rx='6' ry='8'/><ellipse cx='40' cy='13' rx='6' ry='8'/><ellipse cx='52' cy='24' rx='6.5' ry='8'/></svg>");
+  will-change: transform;
+}
+[data-theme="dark"] .paw { background-color: var(--brand-soft); }
+
+/* sections that host paw scatters need clip + stacking context */
+.section--pawed { position: relative; overflow: hidden; }
+.section--pawed > .shell { position: relative; z-index: 1; }
+@media (max-width: 768px) {
+  .paw-scatter .paw { transform-origin: center; }
+}
+
 .hero-content { position: relative; z-index: 1; text-align: center; max-width: 720px; margin: 0 auto; }
 .hero-eyebrow {
   display: inline-flex; align-items: center; gap: 8px;
