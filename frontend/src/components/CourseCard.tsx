@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { Course } from '@/types/course'
-import { Rating } from './Rating'
+import { PawRating } from './PawRating'
 
 interface Props {
   course: Course
@@ -66,7 +66,7 @@ export function CourseCard({ course }: Props) {
         </div>
         <div className="cc-foot">
           <div className="cc-stats">
-            <Rating value={course.avg_rating} />
+            <PawRating value={course.avg_rating} />
             {course.review_count > 0 ? (
               <span className="body-sm mono" style={{ color: 'var(--ink-1)', fontWeight: 600 }}>
                 {course.avg_rating.toFixed(1)}

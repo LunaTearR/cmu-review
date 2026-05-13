@@ -158,8 +158,8 @@ Search matches course code, Thai name, and English name (full-text + ILIKE fallb
 │       ├── context/         # DataRefreshContext, ReviewModalContext
 │       ├── pages/           # HomePage, CourseListPage, CourseDetailPage, CreateCoursePage
 │       ├── components/      # CourseCard, CourseRow, CourseFilterPanel, ReviewCard,
-│       │                    #   ReviewModal, ReviewForm, ReviewModalForm, Rating,
-│       │                    #   SearchableSelect, Icons, Layout
+│       │                    #   ReviewModal, ReviewForm, ReviewModalForm, PawRating,
+│       │                    #   PawScatter, SearchableSelect, Icons, Layout
 │       ├── index.css        # full design system (lavender tokens + utility classes)
 │       └── theme.ts         # token map (CSS vars)
 ├── docker-compose.yml
@@ -187,7 +187,8 @@ Frontend uses React Context for cross-page coordination:
 
 - **Theme**: lavender (`#7A5DC7` brand) + Noto Sans Thai. Light + dark mode toggle persisted to localStorage.
 - **Responsive**: desktop `>1024px` inline filter panel; mobile/tablet `≤1024px` filter drawer (slide-in from left, body portal, overlay backdrop). Burger toggle on results column. iPhone 12 Pro tested.
-- **Half-heart rating**: click left/right half of heart for `.5` / whole values (mouse position determines).
+- **Paw rating**: 5 Font-Awesome paws (4 toes + pad). Display fills paws fractionally per 0.25-toe buckets; input is whole-paw click (integer 1–5). See `PawRating.tsx`.
+- **Paw watermarks**: faded decorative paws scattered across hero / section backgrounds via `PawScatter.tsx` (seeded deterministic placement, anti-overlap).
 - **Optimistic UI**: review submission prepends locally + bumps cache version → all open pages refetch.
 
 ## Anti-Spam

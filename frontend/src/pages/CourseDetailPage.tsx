@@ -4,7 +4,7 @@ import type { Course } from '@/types/course'
 import type { Review } from '@/types/review'
 import { fetchCourse } from '@/api/courses'
 import { fetchReviews } from '@/api/reviews'
-import { Rating } from '@/components/Rating'
+import { PawRating } from '@/components/PawRating'
 import { ReviewCard } from '@/components/ReviewCard'
 import { ReviewModal } from '@/components/ReviewModal'
 import { IconBack, IconPen } from '@/components/Icons'
@@ -187,7 +187,7 @@ export function CourseDetailPage() {
                 <span className="body-sm">/ 5.0</span>
               </div>
               <div style={{ margin: '10px 0 14px' }}>
-                <Rating value={course.avg_rating} size="lg" />
+                <PawRating value={course.avg_rating} size={26} />
               </div>
               <div className="caption">จาก {course.review_count} รีวิว</div>
 
