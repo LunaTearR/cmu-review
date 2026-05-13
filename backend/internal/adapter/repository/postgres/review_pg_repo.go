@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/lib/pq"
 
 	"cmu-review-backend/internal/domain/entity"
 	domainerrors "cmu-review-backend/internal/domain/errors"
@@ -25,24 +26,29 @@ func (r *reviewPgRepo) Create(ctx context.Context, rv *entity.Review) (*entity.R
 	const q = `
 		INSERT INTO reviews
 		  (course_id, user_id, rating, grade, academic_year, semester, content,
-		   category, program, professor, reviewer_name, ip_hash)
-		VALUES ($1, $2, $3, NULLIF($4, ''), $5, $6, $7, $8, $9, $10, $11, $12)
+		   category, program, professor, reviewer_name, insight_tags, ip_hash)
+		VALUES ($1, $2, $3, NULLIF($4, ''), $5, $6, $7, $8, $9, $10, $11, $12, $13)
 		RETURNING id, course_id, user_id, rating, COALESCE(grade, ''),
 		          academic_year, semester, content,
-		          category, program, professor, reviewer_name,
+		          category, program, professor, reviewer_name, insight_tags,
 		          ip_hash, is_hidden, created_at`
 
 	out := &entity.Review{}
 	var userID sql.NullInt64
+	tags := rv.InsightTags
+	if tags == nil {
+		tags = []string{}
+	}
 
 	err := r.db.QueryRowContext(ctx, q,
 		rv.CourseID, rv.UserID, rv.Rating, rv.Grade,
 		rv.AcademicYear, rv.Semester, rv.Content,
-		rv.Category, rv.Program, rv.Professor, rv.ReviewerName, rv.IPHash,
+		rv.Category, rv.Program, rv.Professor, rv.ReviewerName, pq.Array(tags), rv.IPHash,
 	).Scan(
 		&out.ID, &out.CourseID, &userID, &out.Rating,
 		&out.Grade, &out.AcademicYear, &out.Semester,
 		&out.Content, &out.Category, &out.Program, &out.Professor, &out.ReviewerName,
+		pq.Array(&out.InsightTags),
 		&out.IPHash, &out.IsHidden, &out.CreatedAt,
 	)
 	if err != nil {
@@ -65,7 +71,7 @@ func (r *reviewPgRepo) ListByCourse(ctx context.Context, courseID int, opts repo
 	const q = `
 		SELECT id, course_id, user_id, rating, COALESCE(grade, ''),
 		       academic_year, semester, content,
-		       category, program, professor, reviewer_name,
+		       category, program, professor, reviewer_name, insight_tags,
 		       ip_hash, is_hidden, created_at
 		FROM reviews
 		WHERE course_id = $1 AND is_hidden = FALSE
@@ -86,6 +92,7 @@ func (r *reviewPgRepo) ListByCourse(ctx context.Context, courseID int, opts repo
 			&rv.ID, &rv.CourseID, &userID, &rv.Rating,
 			&rv.Grade, &rv.AcademicYear, &rv.Semester,
 			&rv.Content, &rv.Category, &rv.Program, &rv.Professor, &rv.ReviewerName,
+			pq.Array(&rv.InsightTags),
 			&rv.IPHash, &rv.IsHidden, &rv.CreatedAt,
 		); err != nil {
 			return nil, 0, err
@@ -120,6 +127,54 @@ func (r *reviewPgRepo) ListDistinctPrograms(ctx context.Context) ([]string, erro
 		programs = append(programs, p)
 	}
 	return programs, rows.Err()
+}
+
+func (r *reviewPgRepo) CountVisibleByCourse(ctx context.Context, courseID int) (int, error) {
+	const q = `SELECT COUNT(*) FROM reviews WHERE course_id = $1 AND is_hidden = FALSE`
+	var n int
+	err := r.db.QueryRowContext(ctx, q, courseID).Scan(&n)
+	return n, err
+}
+
+func (r *reviewPgRepo) AggregateInsightTags(ctx context.Context, courseID int) ([]entity.TagCount, error) {
+	const q = `
+		SELECT tag, COUNT(*)::int AS cnt
+		FROM reviews, unnest(insight_tags) AS tag
+		WHERE course_id = $1
+		  AND is_hidden = FALSE
+		  AND tag <> ''
+		GROUP BY tag
+		ORDER BY cnt DESC, tag ASC`
+	rows, err := r.db.QueryContext(ctx, q, courseID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []entity.TagCount
+	for rows.Next() {
+		var tc entity.TagCount
+		if err := rows.Scan(&tc.Tag, &tc.Count); err != nil {
+			return nil, err
+		}
+		out = append(out, tc)
+	}
+	return out, rows.Err()
+}
+
+func (r *reviewPgRepo) CountByTagOverlap(ctx context.Context, courseID int, tags []string) (int, error) {
+	if len(tags) == 0 {
+		return 0, nil
+	}
+	const q = `
+		SELECT COUNT(*)
+		FROM reviews
+		WHERE course_id = $1
+		  AND is_hidden = FALSE
+		  AND insight_tags && $2::text[]`
+	var n int
+	err := r.db.QueryRowContext(ctx, q, courseID, pq.Array(tags)).Scan(&n)
+	return n, err
 }
 
 func (r *reviewPgRepo) CountRecentByHash(ctx context.Context, ipHash string, since time.Time) (int, error) {

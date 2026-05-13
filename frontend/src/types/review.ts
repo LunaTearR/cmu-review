@@ -9,6 +9,7 @@ export interface Review {
   program?: string
   professor?: string
   reviewer_name?: string
+  insight_tags?: string[]
   created_at: string
 }
 
@@ -29,4 +30,5 @@ export interface CreateReviewPayload {
   program?: string
   professor?: string
   reviewer_name?: string
+  insight_tags?: string[]
 }

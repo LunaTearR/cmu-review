@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { CreateReviewPayload } from '@/types/review'
 import { PawRating } from './PawRating'
+import { InsightCheckboxes } from './InsightCheckboxes'
 import { ApiError } from '@/api/client'
 import { pickError } from '@/lib/humanErrors'
 import { IconCheck } from './Icons'
@@ -58,6 +59,7 @@ export function ReviewForm({ courseId: _courseId, onSubmit, onCancel }: Props) {
   const [categoryCustom, setCategoryCustom] = useState('')
   const [professor, setProfessor] = useState('')
   const [reviewerName, setReviewerName] = useState('')
+  const [insightTags, setInsightTags] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
@@ -148,6 +150,7 @@ export function ReviewForm({ courseId: _courseId, onSubmit, onCancel }: Props) {
         category: categoryValue,
         professor: professor.trim(),
         reviewer_name: reviewerName.trim() || undefined,
+        insight_tags: insightTags.length ? insightTags : undefined,
       })
       setSuccess(true)
     } catch (err) {
@@ -307,6 +310,8 @@ export function ReviewForm({ courseId: _courseId, onSubmit, onCancel }: Props) {
         </div>
       </div>
 
+      <InsightCheckboxes value={insightTags} onChange={setInsightTags} />
+
       <div className="form-section">
         <div className="form-section-title">รีวิวยาว · สำคัญที่สุด</div>
         <div className="field">
@@ -314,7 +319,7 @@ export function ReviewForm({ courseId: _courseId, onSubmit, onCancel }: Props) {
           <textarea
             className={`input textarea${fieldErrors.content ? ' has-error' : ''}`}
             style={{ minHeight: 220, fontSize: 16, lineHeight: 1.8 }}
-            placeholder={'ลองเล่า:\n• เนื้อหาเรียนอะไรบ้าง\n• อาจารย์สอนเป็นยังไง\n• งาน/สอบหนักไหม\n• เคล็ดลับเอาตัวรอด\n• เหมาะกับใคร'}
+            placeholder={'ลองเล่า:\n• บรรยากาศในคลาส / สไตล์อาจารย์จริง ๆ\n• ตัวอย่างงานหรือรูปแบบข้อสอบที่เจอ\n• ทริคหรือวิธีเอาตัวรอดในวิชานี้\n• สิ่งที่ควรรู้ก่อนลงทะเบียน\n• ความรู้สึกหลังเรียนจบวิชานี้'}
             value={content}
             onChange={(e) => { setContent(e.target.value); clearError('content') }}
             onBlur={() => blurValidate('content')}

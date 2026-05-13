@@ -15,6 +15,7 @@ type Review struct {
 	Program      string // optional, e.g. "ภาคปกติ" or "ภาคพิเศษ"
 	Professor    string // optional, e.g. "อาจารย์สมชาย"
 	ReviewerName string // optional display nickname, "" = anonymous
+	InsightTags  []string // optional structured insight tags (checkbox selections)
 	IPHash       string // sha256(ip:ua) — never raw PII
 	IsHidden     bool
 	CreatedAt    time.Time

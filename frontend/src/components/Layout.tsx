@@ -38,12 +38,12 @@ export function Layout({ children }: Props) {
           </Link>
 
           <div className="nav-actions">
-            {!isHome && (
+            {/* {!isHome && (
               <button className="nav-search-mini" onClick={() => navigate('/search')}>
                 <IconSearch width="15" height="15" />
                 <span>ค้นหารหัสวิชา / ชื่อวิชา</span>
               </button>
-            )}
+            )} */}
             <Link to={addCourseHref} className="btn btn-ghost btn-sm" aria-label="เพิ่มวิชา">
               <IconPlus /> <span className="nav-text">เพิ่มวิชา</span>
             </Link>

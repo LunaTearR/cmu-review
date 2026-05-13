@@ -1,5 +1,5 @@
 import { get, post } from './client'
-import type { Course, CourseListResponse, CreateCoursePayload } from '@/types/course'
+import type { Course, CourseInsight, CourseListResponse, CreateCoursePayload } from '@/types/course'
 import type { Faculty } from '@/types/faculty'
 
 export interface CourseListParams {
@@ -38,6 +38,9 @@ export const fetchCourses = (params: CourseListParams = {}): Promise<CourseListR
 
 export const fetchCourse = (id: number): Promise<Course> =>
   get<Course>(`/courses/${id}`)
+
+export const fetchCourseInsights = (id: number): Promise<CourseInsight> =>
+  get<CourseInsight>(`/courses/${id}/insights`)
 
 export const createCourse = (payload: CreateCoursePayload): Promise<Course> =>
   post<Course>('/courses', payload)
