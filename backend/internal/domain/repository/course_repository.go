@@ -6,7 +6,8 @@ import (
 	"cmu-review-backend/internal/domain/entity"
 )
 
-// SortBy values: "code" | "rating" | "reviews" | ""
+// SortBy values: "code" | "rating" | "reviews" | "top" | ""
+//   "top" — homepage popularity: avg_rating DESC, review_count DESC, MAX(reviews.created_at) DESC
 type CourseListOpts struct {
 	Search    string
 	Faculties []string // empty = all

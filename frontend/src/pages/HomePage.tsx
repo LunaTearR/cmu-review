@@ -21,13 +21,13 @@ export function HomePage() {
   const [faculties, setFaculties] = useState<Faculty[]>([])
 
   useEffect(() => {
-    fetchCourses({ sort: 'rating', limit: 8, page: 1 })
+    fetchCourses({ sort: 'top', limit: 8, page: 1 })
       .then(r => setTopCourses(r.data))
       .catch(console.error)
   }, [coursesV])
 
   useEffect(() => {
-    fetchCourses({ category: FREE_ELECTIVE, sort: 'rating', limit: 8, page: 1 })
+    fetchCourses({ category: FREE_ELECTIVE, sort: 'top', limit: 8, page: 1 })
       .then(r => setTopFreeElectives(r.data))
       .catch(console.error)
   }, [coursesV])

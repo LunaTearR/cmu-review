@@ -124,6 +124,14 @@ func (r *coursePgRepo) List(ctx context.Context, opts repository.CourseListOpts)
 		orderBy = "avg_rating DESC, c.course_id"
 	case "reviews":
 		orderBy = "review_count DESC, c.course_id"
+	case "top":
+		// Homepage popularity ranking: rating → review count → most recent visible review.
+		// MAX(created_at) is aggregated over the same FILTER as avg/count so hidden reviews
+		// never lift a course's recency. NULLS LAST keeps courses with zero visible reviews
+		// at the bottom when the first two keys tie at 0.
+		orderBy = "avg_rating DESC, review_count DESC, " +
+			"MAX(rv.created_at) FILTER (WHERE NOT rv.is_hidden) DESC NULLS LAST, " +
+			"c.course_id"
 	}
 
 	q := `
