@@ -2,6 +2,7 @@ package review
 
 import (
 	"context"
+	"log"
 	"strings"
 
 	"cmu-review-backend/internal/domain/entity"
@@ -9,6 +10,13 @@ import (
 	"cmu-review-backend/internal/domain/repository"
 	"cmu-review-backend/internal/usecase/port"
 )
+
+// SummaryRegenerator is the narrow contract CreateReviewUseCase needs from the
+// AI summary use case. Kept here so review depends only on a tiny interface,
+// not on the course use case directly.
+type SummaryRegenerator interface {
+	Execute(ctx context.Context, courseID int) (string, bool, error)
+}
 
 // sanitizeTags trims, drops empties, and dedupes insight tag input.
 // Returns []string{} (not nil) so the DB column receives '{}' not NULL.
@@ -33,6 +41,7 @@ type CreateReviewUseCase struct {
 	reviews repository.ReviewRepository
 	courses repository.CourseRepository
 	spam    port.SpamChecker
+	summary SummaryRegenerator // optional — nil if AI summary disabled
 }
 
 type CreateReviewInput struct {
@@ -57,6 +66,14 @@ func NewCreateReview(
 	spam port.SpamChecker,
 ) *CreateReviewUseCase {
 	return &CreateReviewUseCase{reviews: reviews, courses: courses, spam: spam}
+}
+
+// WithSummaryRegenerator wires the AI summary use case so a review insert
+// triggers regeneration when the course crosses the visibility threshold.
+// Returns the receiver for chained construction in cmd/main.go.
+func (uc *CreateReviewUseCase) WithSummaryRegenerator(s SummaryRegenerator) *CreateReviewUseCase {
+	uc.summary = s
+	return uc
 }
 
 func (uc *CreateReviewUseCase) Execute(ctx context.Context, in CreateReviewInput) (*entity.Review, error) {
@@ -100,5 +117,71 @@ func (uc *CreateReviewUseCase) Execute(ctx context.Context, in CreateReviewInput
 		IPHash:       in.Actor.SubmitterHash(),
 	}
 
-	return uc.reviews.Create(ctx, r)
+	created, err := uc.reviews.Create(ctx, r)
+	if err != nil {
+		return nil, err
+	}
+
+	uc.maybeRegenerateSummary(created.CourseID)
+
+	return created, nil
+}
+
+// summaryFirstThreshold / summaryStepInterval mirror the constants in
+// course.GenerateReviewSummaryUseCase. Duplicated here as untyped consts
+// instead of importing the course package, because review must not depend on
+// other use case packages (peer layer rule).
+const (
+	summaryFirstThreshold = 5 // first summary fires at this many visible reviews
+	summaryStepInterval   = 5 // subsequent regen every N more reviews
+)
+
+// maybeRegenerateSummary runs the AI-summary decision in a background
+// goroutine. Detached from the request context (the request returns long
+// before Gemini does) and survives a hot handler return.
+//
+// Rule (production-safe, robust against count jumps from concurrent inserts):
+//
+//	IF  course.ai_summary == ""  AND review_count >= summaryFirstThreshold
+//	    → first-time generation
+//	ELSE IF review_count >= ai_summary_review_count + summaryStepInterval
+//	    → batched regeneration
+//	ELSE
+//	    → no-op (cost saver)
+//
+// We do NOT use `review_count == 5` because a 4→6 jump under concurrent
+// inserts would silently miss the trigger.
+func (uc *CreateReviewUseCase) maybeRegenerateSummary(courseID int) {
+	if uc.summary == nil {
+		return
+	}
+	go func() {
+		defer func() {
+			if rec := recover(); rec != nil {
+				log.Printf("ai_summary: panic for course %d: %v", courseID, rec)
+			}
+		}()
+		ctx := context.Background()
+
+		count, err := uc.reviews.CountVisibleByCourse(ctx, courseID)
+		if err != nil {
+			log.Printf("ai_summary: course %d: count: %v", courseID, err)
+			return
+		}
+		course, err := uc.courses.GetByID(ctx, courseID)
+		if err != nil {
+			log.Printf("ai_summary: course %d: load: %v", courseID, err)
+			return
+		}
+
+		firstTime := course.AISummary == "" && count >= summaryFirstThreshold
+		batched := count >= course.AISummaryReviewCount+summaryStepInterval
+		if !firstTime && !batched {
+			return
+		}
+
+		if _, _, err := uc.summary.Execute(ctx, courseID); err != nil {
+			log.Printf("ai_summary: course %d: generate: %v", courseID, err)
+		}
+	}()
 }

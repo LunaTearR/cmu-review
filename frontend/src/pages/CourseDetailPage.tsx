@@ -7,6 +7,7 @@ import { fetchReviews } from '@/api/reviews'
 import { PawRating } from '@/components/PawRating'
 import { ReviewCard } from '@/components/ReviewCard'
 import { ReviewModal } from '@/components/ReviewModal'
+import { AISummaryCard } from '@/components/AISummaryCard'
 import { CourseInsightPanel } from '@/components/CourseInsightPanel'
 import { IconBack, IconPen } from '@/components/Icons'
 import { useReviewModal } from '@/context/ReviewModalContext'
@@ -142,6 +143,10 @@ export function CourseDetailPage() {
           )}
 
           <section>
+            {course.review_count >= 5 && course.ai_summary && (
+              <AISummaryCard summary={course.ai_summary} />
+            )}
+
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, flexWrap: 'wrap', gap: 12 }}>
               <h2 className="h-2">
                 รีวิวจากนักศึกษา <span style={{ color: 'var(--ink-4)', fontWeight: 500 }}>({total})</span>

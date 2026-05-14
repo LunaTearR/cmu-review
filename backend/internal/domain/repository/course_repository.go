@@ -23,4 +23,5 @@ type CourseRepository interface {
 	Create(ctx context.Context, c *entity.Course) (*entity.Course, error)
 	List(ctx context.Context, opts CourseListOpts) ([]entity.Course, int, error)
 	GetByID(ctx context.Context, id int) (*entity.Course, error)
+	UpdateAISummary(ctx context.Context, id int, summary string, reviewCount int, lastReviewID int64) error
 }

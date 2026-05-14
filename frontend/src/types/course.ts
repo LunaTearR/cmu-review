@@ -11,6 +11,7 @@ export interface Course {
   faculty: Faculty
   avg_rating: number
   review_count: number
+  ai_summary: string
 }
 
 export interface CourseListResponse {

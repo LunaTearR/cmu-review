@@ -10,6 +10,13 @@ type Config struct {
 	App      AppConfig
 	Database DatabaseConfig
 	Redis    RedisConfig
+	Gemini   GeminiConfig
+}
+
+type GeminiConfig struct {
+	APIKey     string
+	Model      string
+	TimeoutSec int
 }
 
 type RedisConfig struct {
@@ -53,6 +60,7 @@ func Load() *Config {
 		"PORT", "DATABASE_URL", "DATABASE_PRIVATE_URL",
 		"PGHOST", "PGPORT", "PGUSER", "PGPASSWORD", "PGDATABASE",
 		"REDIS_URL",
+		"GEMINI_API_KEY",
 	} {
 		_ = viper.BindEnv(key)
 	}
@@ -67,6 +75,8 @@ func Load() *Config {
 	viper.SetDefault("DATABASE_MAX_IDLE_CONNS", 10)
 	viper.SetDefault("DATABASE_CONN_MAX_LIFETIME", 300)
 	viper.SetDefault("REDIS_FACULTY_TTL_SECONDS", 3600)
+	viper.SetDefault("GEMINI_MODEL", "gemini-3.1-flash-lite")
+	viper.SetDefault("GEMINI_TIMEOUT_SECONDS", 30)
 
 	port := viper.GetString("PORT")
 	if port == "" {
@@ -93,6 +103,11 @@ func Load() *Config {
 		Redis: RedisConfig{
 			URL:           viper.GetString("REDIS_URL"),
 			FacultyTTLSec: viper.GetInt("REDIS_FACULTY_TTL_SECONDS"),
+		},
+		Gemini: GeminiConfig{
+			APIKey:     viper.GetString("GEMINI_API_KEY"),
+			Model:      viper.GetString("GEMINI_MODEL"),
+			TimeoutSec: viper.GetInt("GEMINI_TIMEOUT_SECONDS"),
 		},
 	}
 }

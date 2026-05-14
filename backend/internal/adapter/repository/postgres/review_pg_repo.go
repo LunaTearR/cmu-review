@@ -177,6 +177,35 @@ func (r *reviewPgRepo) CountByTagOverlap(ctx context.Context, courseID int, tags
 	return n, err
 }
 
+func (r *reviewPgRepo) ListLatestForSummary(ctx context.Context, courseID int, limit int) ([]repository.ReviewContent, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	const q = `
+		SELECT id, content
+		FROM reviews
+		WHERE course_id = $1
+		  AND is_hidden = FALSE
+		  AND content <> ''
+		ORDER BY id DESC
+		LIMIT $2`
+	rows, err := r.db.QueryContext(ctx, q, courseID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []repository.ReviewContent
+	for rows.Next() {
+		var rc repository.ReviewContent
+		if err := rows.Scan(&rc.ID, &rc.Content); err != nil {
+			return nil, err
+		}
+		out = append(out, rc)
+	}
+	return out, rows.Err()
+}
+
 func (r *reviewPgRepo) CountRecentByHash(ctx context.Context, ipHash string, since time.Time) (int, error) {
 	const q = `SELECT COUNT(*) FROM reviews WHERE ip_hash = $1 AND created_at > $2`
 	var count int

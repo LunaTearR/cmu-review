@@ -13,15 +13,23 @@ interface Props {
   preselectCourseId?: number
   onSuccess: (review: Review, courseId: number) => void
   onCancel: () => void
+  onDirtyChange?: (dirty: boolean) => void
 }
 
-export function ReviewModalForm({ preselectCourseId, onSuccess, onCancel }: Props) {
+export function ReviewModalForm({ preselectCourseId, onSuccess, onCancel, onDirtyChange }: Props) {
   const [course, setCourse] = useState<Course | null>(null)
   const [courseQuery, setCourseQuery] = useState('')
   const [showDD, setShowDD] = useState(false)
   const [results, setResults] = useState<Course[]>([])
   const [loadingCourse, setLoadingCourse] = useState(false)
   const [locked, setLocked] = useState(false)
+  const [formDirty, setFormDirty] = useState(false)
+
+  const pickerDirty = !preselectCourseId && (!!course || courseQuery.trim().length > 0)
+
+  useEffect(() => {
+    onDirtyChange?.(pickerDirty || formDirty)
+  }, [pickerDirty, formDirty, onDirtyChange])
 
   useEffect(() => {
     if (preselectCourseId) {
@@ -156,7 +164,7 @@ export function ReviewModalForm({ preselectCourseId, onSuccess, onCancel }: Prop
           </div>
         </div>
       ) : (
-        <ReviewForm courseId={course.id} onSubmit={handleSubmit} onCancel={onCancel} />
+        <ReviewForm courseId={course.id} onSubmit={handleSubmit} onCancel={onCancel} onDirtyChange={setFormDirty} />
       )}
     </div>
   )

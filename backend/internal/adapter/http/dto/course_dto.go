@@ -30,6 +30,7 @@ type CourseResponse struct {
 	Faculty      FacultyEmbed `json:"faculty"`
 	AvgRating    float64      `json:"avg_rating"`
 	ReviewCount  int          `json:"review_count"`
+	AISummary    string       `json:"ai_summary"`
 }
 
 type CourseListResponse struct {
@@ -56,5 +57,6 @@ func ToCourseResponse(c *entity.Course) CourseResponse {
 		},
 		AvgRating:   c.AvgRating,
 		ReviewCount: c.ReviewCount,
+		AISummary:   c.AISummary,
 	}
 }

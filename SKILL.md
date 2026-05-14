@@ -87,9 +87,12 @@ type Course struct {
     FacultyID    int
     Description  string
     Prerequisite string    // free text — added migration 000005
-    Faculty      Faculty
-    AvgRating    float64
-    ReviewCount  int
+    Faculty               Faculty
+    AvgRating             float64
+    ReviewCount           int
+    AISummary             string  // cached LLM summary of reviews (migration 000007)
+    AISummaryReviewCount  int     // review count when summary was generated (migration 000008)
+    AISummaryLastReviewID int64   // max review.id included in the cached summary (migration 000008)
 }
 
 // internal/domain/entity/faculty.go
@@ -158,7 +161,17 @@ type ReviewRepository interface {
     Create(ctx context.Context, r *entity.Review) (*entity.Review, error)
     ListByCourse(ctx context.Context, courseID int, opts ListOpts) ([]entity.Review, int, error)
     CountRecentByHash(ctx context.Context, ipHash string, since time.Time) (int, error)
-    ListDistinctPrograms(ctx context.Context) ([]string, error)   // distinct reviews.program for filter UI
+    ListDistinctPrograms(ctx context.Context) ([]string, error)
+    CountVisibleByCourse(ctx context.Context, courseID int) (int, error)
+    AggregateInsightTags(ctx context.Context, courseID int) ([]entity.TagCount, error)
+    CountByTagOverlap(ctx context.Context, courseID int, tags []string) (int, error)
+    ListLatestForSummary(ctx context.Context, courseID int, limit int) ([]ReviewContent, error)
+}
+
+// ReviewContent — narrow (id, content) pair used by the AI summary pipeline.
+type ReviewContent struct {
+    ID      int64
+    Content string
 }
 
 type ListOpts struct {
@@ -183,6 +196,7 @@ type CourseRepository interface {
     Create(ctx context.Context, c *entity.Course) (*entity.Course, error)
     List(ctx context.Context, opts CourseListOpts) ([]entity.Course, int, error)
     GetByID(ctx context.Context, id int) (*entity.Course, error)
+    UpdateAISummary(ctx context.Context, id int, summary string, reviewCount int, lastReviewID int64) error
 }
 
 // internal/domain/repository/faculty_repository.go
@@ -255,6 +269,15 @@ type SpamChecker interface {
 type Actor interface {
     SubmitterHash() string
     UserID() *int   // nil if anonymous
+}
+
+// internal/usecase/port/summary_port.go
+//
+// SummaryGenerator — implemented by adapter/aisummary.GeminiClient.
+// Use case (course.GenerateReviewSummaryUseCase) depends only on this port,
+// not on the Gemini client directly.
+type SummaryGenerator interface {
+    Generate(ctx context.Context, prompt string) (string, error)
 }
 ```
 
@@ -755,6 +778,63 @@ Uncomment this line in `cmd/main.go`:
 ```go
 spamcheck.NewRateLimitChecker(reviewRepo, 3, time.Hour),
 ```
+
+### AI Review Summary (Gemini)
+
+Adapter: `internal/adapter/aisummary/gemini.go` — `GeminiClient` implements `port.SummaryGenerator`. Plain `net/http` against `https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}`. Built-in retry (3 attempts, 1s/2s/4s backoff) on `429` / `5xx` / network errors. `400` / `403` short-circuit (not retryable).
+
+Use case: `internal/usecase/course/generate_review_summary.go` — `GenerateReviewSummaryUseCase`. Pure: caller decides when to invoke; this code always produces a fresh summary.
+
+```go
+items, _ := reviews.ListLatestForSummary(ctx, courseID, MaxReviewsInPrompt /* 50 */)
+totalCount, _ := reviews.CountVisibleByCourse(ctx, courseID)
+prompt, lastReviewID := buildPrompt(items)   // smart-trim each to 400 runes
+summary, _ := generator.Generate(ctx, prompt)
+courses.UpdateAISummary(ctx, courseID, summary, totalCount, lastReviewID)
+```
+
+Trigger decision: `internal/usecase/review/create_review.go::maybeRegenerateSummary`. After `reviews.Create` succeeds, fire-and-forget goroutine w/ `context.Background()` runs:
+
+```go
+firstTime := course.AISummary == "" && count >= summaryFirstThreshold   // 5
+batched   := count >= course.AISummaryReviewCount + summaryStepInterval // +5
+if firstTime || batched { summary.Execute(ctx, courseID) }
+```
+
+`>=` (not `==`) so a concurrent 4→6 jump still triggers.
+
+Smart-trim (`smartTrim` in same file): collapses whitespace via `unicode.IsSpace`, caps rune length, back-tracks to last sentence terminator (`.!?。！？\n`) inside the trailing 20% window (min 30 runes) to avoid cutting mid-clause; appends `…` if cut.
+
+Config: `cfg.Gemini.APIKey`, `cfg.Gemini.Model` (default `gemini-3-flash-lite`), `cfg.Gemini.TimeoutSec`. Empty key → `summaryGen = nil` in `cmd/main.go`; all summary code paths no-op silently (one startup log).
+
+Wiring in `cmd/main.go`:
+
+```go
+var summaryGen port.SummaryGenerator
+if cfg.Gemini.APIKey != "" {
+    summaryGen = aisummary.NewGeminiClient(aisummary.GeminiConfig{
+        APIKey: cfg.Gemini.APIKey, Model: cfg.Gemini.Model,
+        Timeout: time.Duration(cfg.Gemini.TimeoutSec) * time.Second,
+    })
+}
+generateSummary := courseuc.NewGenerateReviewSummary(reviewRepo, courseRepo, summaryGen)
+createReview := reviewuc.NewCreateReview(reviewRepo, courseRepo, spamPipeline).
+    WithSummaryRegenerator(generateSummary)
+```
+
+Schema (migrations 000007 + 000008):
+
+```sql
+ALTER TABLE courses ADD COLUMN ai_summary                TEXT   NOT NULL DEFAULT '';
+ALTER TABLE courses ADD COLUMN ai_summary_review_count   INT    NOT NULL DEFAULT 0;
+ALTER TABLE courses ADD COLUMN ai_summary_last_review_id BIGINT NOT NULL DEFAULT 0;
+```
+
+`UpdateAISummary` is the single point of write — sets all three columns atomically so the next regen-decision sees a consistent snapshot.
+
+DTO: `ai_summary` field added to `CourseResponse` + `ToCourseResponse`. The two count/id columns stay internal — never exposed via API.
+
+Frontend rendering: `frontend/src/components/AISummaryCard.tsx` (lavender-gradient card w/ inline sparkle SVG). `CourseDetailPage.tsx` renders it above the reviews list when `course.review_count >= 5 && course.ai_summary` is truthy. `coursesV` bump after review submit refreshes the card automatically once Gemini finishes.
 
 ### Adding a course field (precedent: prerequisite migration 000005)
 

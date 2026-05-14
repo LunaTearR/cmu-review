@@ -20,7 +20,7 @@ export function CourseInsightPanel({ insight }: Props) {
 
   return (
     <div className="card card-pad">
-      <div className="caption" style={{ marginBottom: 10 }}>สรุปจากรีวิว</div>
+      <div className="caption" style={{ marginBottom: 10 }}>ไฮไลต์จากแท็กรีวิว</div>
 
       {hasBadges && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: hasWarnings || hasGroups ? 10 : 0 }}>

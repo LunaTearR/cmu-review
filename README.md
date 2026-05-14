@@ -10,6 +10,7 @@ Anonymous course review platform for Chiang Mai University students. Soft lavend
 | Frontend | React 18, TypeScript, Vite, React Router |
 | Database | PostgreSQL 16 |
 | Cache | Redis (faculty list) |
+| AI summary | Google Gemini (3.1 Flash Lite via REST) |
 | Runtime | Docker Compose (all services containerised) |
 | Frontend hosting | Vercel |
 | Backend hosting | Railway |
@@ -38,6 +39,11 @@ PGADMIN_PASSWORD=<password>
 PGADMIN_PORT=5050
 BACKEND_PORT=8080
 FRONTEND_PORT=8000
+
+# AI summary (optional — feature self-disables when empty)
+GEMINI_API_KEY=<aistudio key>
+GEMINI_MODEL=gemini-3.1-flash-lite
+GEMINI_TIMEOUT_SECONDS=60
 ```
 
 Railway: backend reads `DATABASE_PRIVATE_URL` → `DATABASE_URL` → individual `PG*` vars as fallback chain.
@@ -124,13 +130,36 @@ Search matches course code, Thai name, and English name (full-text + ILIKE fallb
 
 `website` = honeypot field, must be empty. `rating` supports half values (0.5 increments, 1–5). `category`, `program`, `professor`, `reviewer_name` optional.
 
+`GET /api/v1/courses/:id` returns an extra `ai_summary` field — a Thai LLM summary of all reviews. Empty string when the course has < 5 visible reviews or no summary has been generated yet. See **AI Review Summary** below.
+
+## AI Review Summary
+
+Each course page renders a Thai AI-generated summary above the review list once enough reviews accumulate. Powered by **Google Gemini 3.1 Flash Lite** (configurable via `GEMINI_MODEL`).
+
+**Trigger rule (production-safe, concurrency-tolerant):**
+
+```
+IF  course.ai_summary IS EMPTY  AND  visible_review_count >= 5
+    → generate (first time)
+ELSE IF visible_review_count >= ai_summary_review_count + 5
+    → regenerate (batched)
+ELSE
+    → no-op
+```
+
+`==` is intentionally avoided — a 4→6 jump under concurrent inserts still triggers correctly.
+
+**Pipeline:** review insert → fire-and-forget goroutine → count + load course → decide → call Gemini (3 retries, exponential backoff on 429/5xx) → smart-trim each review (max 400 runes, sentence-boundary aware) → cap at 50 reviews/prompt → persist `ai_summary` + `ai_summary_review_count` + `ai_summary_last_review_id`. Request never blocks on the LLM.
+
+Self-disables when `GEMINI_API_KEY` is empty (logged once at startup).
+
 ## Frontend Routes
 
 | Route | Page | Notes |
 |-------|------|-------|
 | `/` | HomePage | Hero search, top-rated courses, faculty grid, CTA banner |
 | `/search` | CourseListPage | Filter drawer (mobile burger), grid/list density toggle, sort segment |
-| `/courses/:id` | CourseDetailPage | Hero + 2-col layout: description/prerequisite/reviews + sticky stats sidebar (avg rating, recommend %, grade distribution) |
+| `/courses/:id` | CourseDetailPage | Hero + 2-col layout: description/prerequisite + AI summary card (`AISummaryCard`) + reviews + sticky stats sidebar (avg rating, recommend %, grade distribution) |
 | `/courses/new` | CreateCoursePage | Sectioned form w/ external CMU TQF + reg links |
 
 **Write Review** = global modal popup (no route). Triggered from nav button, home CTA, course detail buttons. Auto-fills course when opened from detail page. After submit, modal closes + optimistic insert on detail + global `coursesV` / `reviewsV` bumps refetch other open pages.
@@ -148,8 +177,8 @@ Search matches course code, Thai name, and English name (full-text + ILIKE fallb
 │   ├── internal/
 │   │   ├── domain/          # entities, value objects, repository interfaces, errors
 │   │   ├── usecase/         # business logic (port + course/faculty/review)
-│   │   └── adapter/         # http (handler/middleware/dto), repository/postgres, spamcheck, cache (Redis)
-│   ├── migrations/          # golang-migrate SQL files (000001–000005)
+│   │   └── adapter/         # http (handler/middleware/dto), repository/postgres, spamcheck, cache (Redis), aisummary (Gemini)
+│   ├── migrations/          # golang-migrate SQL files (000001–000008)
 │   └── scripts/             # SeedFaculties function
 ├── frontend/
 │   └── src/
@@ -159,7 +188,7 @@ Search matches course code, Thai name, and English name (full-text + ILIKE fallb
 │       ├── pages/           # HomePage, CourseListPage, CourseDetailPage, CreateCoursePage
 │       ├── components/      # CourseCard, CourseRow, CourseFilterPanel, ReviewCard,
 │       │                    #   ReviewModal, ReviewForm, ReviewModalForm, PawRating,
-│       │                    #   PawScatter, SearchableSelect, Icons, Layout
+│       │                    #   PawScatter, SearchableSelect, Icons, Layout, AISummaryCard
 │       ├── index.css        # full design system (lavender tokens + utility classes)
 │       └── theme.ts         # token map (CSS vars)
 ├── docker-compose.yml

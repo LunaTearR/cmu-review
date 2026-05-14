@@ -1,8 +1,9 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { Review } from '@/types/review'
 import { ReviewModalForm } from '@/components/ReviewModalForm'
 import { IconClose } from '@/components/Icons'
+import { confirmDiscard } from '@/lib/confirm'
 import { useDataRefresh } from './DataRefreshContext'
 
 interface OpenOpts {
@@ -32,46 +33,53 @@ interface State {
 export function ReviewModalProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<State>({ open: false })
   const { bump } = useDataRefresh()
+  const dirtyRef = useRef(false)
 
   const open = useCallback((opts?: OpenOpts) => {
+    dirtyRef.current = false
     setState({ open: true, courseId: opts?.courseId, onSuccess: opts?.onSuccess })
   }, [])
-  const close = useCallback(() => setState({ open: false }), [])
+
+  const forceClose = useCallback(() => {
+    dirtyRef.current = false
+    setState({ open: false })
+  }, [])
+
+  const requestClose = useCallback(async () => {
+    if (dirtyRef.current) {
+      const ok = await confirmDiscard()
+      if (!ok) return
+    }
+    forceClose()
+  }, [forceClose])
 
   const handleSuccess = useCallback((review: Review, courseId: number) => {
     state.onSuccess?.(review, courseId)
     bump('reviews')
     bump('courses')
-    setState({ open: false })
-  }, [state.onSuccess, bump])
+    forceClose()
+  }, [state.onSuccess, bump, forceClose])
 
   useEffect(() => {
     if (!state.open) return
     document.body.style.overflow = 'hidden'
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close() }
-    window.addEventListener('keydown', onKey)
-    return () => {
-      document.body.style.overflow = ''
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [state.open, close])
+    return () => { document.body.style.overflow = '' }
+  }, [state.open])
 
   return (
-    <ReviewModalCtx.Provider value={{ open, close }}>
+    <ReviewModalCtx.Provider value={{ open, close: forceClose }}>
       {children}
       {state.open && createPortal(
-        <div
-          className="modal-backdrop"
-          onClick={(e) => { if (e.target === e.currentTarget) close() }}
-        >
+        <div className="modal-backdrop">
           <div className="modal-shell" role="dialog" aria-modal="true" style={{ padding: '32px 36px 36px' }}>
-            <button className="modal-close" onClick={close} aria-label="ปิด">
+            <button className="modal-close" onClick={requestClose} aria-label="ปิด">
               <IconClose />
             </button>
             <ReviewModalForm
               preselectCourseId={state.courseId}
               onSuccess={handleSuccess}
-              onCancel={close}
+              onCancel={requestClose}
+              onDirtyChange={(d) => { dirtyRef.current = d }}
             />
           </div>
         </div>,
