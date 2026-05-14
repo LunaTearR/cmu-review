@@ -43,9 +43,11 @@ func (r *coursePgRepo) Create(ctx context.Context, c *entity.Course) (*entity.Co
 		WITH inserted AS (
 			INSERT INTO courses (course_id, name_th, name_en, credits, faculty_id, description, prerequisite)
 			VALUES ($1, $2, $3, $4, $5, $6, $7)
-			RETURNING id, course_id, name_th, name_en, credits, faculty_id, description, prerequisite
+			RETURNING id, course_id, name_th, name_en, credits, faculty_id, description, prerequisite,
+			          ai_summary, ai_summary_review_count, ai_summary_last_review_id
 		)
 		SELECT i.id, i.course_id, i.name_th, i.name_en, i.credits, i.description, i.prerequisite,
+		       i.ai_summary, i.ai_summary_review_count, i.ai_summary_last_review_id,
 		       i.faculty_id, f.id, f.code, f.name_th, f.name_en,
 		       0.0::float8 AS avg_rating, 0::int AS review_count
 		FROM inserted i
@@ -56,6 +58,7 @@ func (r *coursePgRepo) Create(ctx context.Context, c *entity.Course) (*entity.Co
 		c.CourseCode, c.NameTH, c.NameEN, c.Credits, c.FacultyID, c.Description, c.Prerequisite,
 	).Scan(
 		&out.ID, &out.CourseCode, &out.NameTH, &out.NameEN, &out.Credits, &out.Description, &out.Prerequisite,
+		&out.AISummary, &out.AISummaryReviewCount, &out.AISummaryLastReviewID,
 		&out.FacultyID, &out.Faculty.ID, &out.Faculty.Code, &out.Faculty.NameTH, &out.Faculty.NameEN,
 		&out.AvgRating, &out.ReviewCount,
 	)
@@ -125,6 +128,7 @@ func (r *coursePgRepo) List(ctx context.Context, opts repository.CourseListOpts)
 
 	q := `
 		SELECT c.id, c.course_id, c.name_th, c.name_en, c.credits, c.description, c.prerequisite,
+		       c.ai_summary, c.ai_summary_review_count, c.ai_summary_last_review_id,
 		       c.faculty_id, f.id, f.code, f.name_th, f.name_en,
 		       COALESCE(AVG(rv.rating) FILTER (WHERE NOT rv.is_hidden), 0) AS avg_rating,
 		       COUNT(rv.id) FILTER (WHERE NOT rv.is_hidden) AS review_count
@@ -150,6 +154,7 @@ func (r *coursePgRepo) List(ctx context.Context, opts repository.CourseListOpts)
 		var c entity.Course
 		if err := rows.Scan(
 			&c.ID, &c.CourseCode, &c.NameTH, &c.NameEN, &c.Credits, &c.Description, &c.Prerequisite,
+			&c.AISummary, &c.AISummaryReviewCount, &c.AISummaryLastReviewID,
 			&c.FacultyID, &c.Faculty.ID, &c.Faculty.Code, &c.Faculty.NameTH, &c.Faculty.NameEN,
 			&c.AvgRating, &c.ReviewCount,
 		); err != nil {
@@ -163,6 +168,7 @@ func (r *coursePgRepo) List(ctx context.Context, opts repository.CourseListOpts)
 func (r *coursePgRepo) GetByID(ctx context.Context, id int) (*entity.Course, error) {
 	const q = `
 		SELECT c.id, c.course_id, c.name_th, c.name_en, c.credits, c.description, c.prerequisite,
+		       c.ai_summary, c.ai_summary_review_count, c.ai_summary_last_review_id,
 		       c.faculty_id, f.id, f.code, f.name_th, f.name_en,
 		       COALESCE(AVG(rv.rating) FILTER (WHERE NOT rv.is_hidden), 0) AS avg_rating,
 		       COUNT(rv.id) FILTER (WHERE NOT rv.is_hidden) AS review_count
@@ -175,6 +181,7 @@ func (r *coursePgRepo) GetByID(ctx context.Context, id int) (*entity.Course, err
 	out := &entity.Course{}
 	err := r.db.QueryRowContext(ctx, q, id).Scan(
 		&out.ID, &out.CourseCode, &out.NameTH, &out.NameEN, &out.Credits, &out.Description, &out.Prerequisite,
+		&out.AISummary, &out.AISummaryReviewCount, &out.AISummaryLastReviewID,
 		&out.FacultyID, &out.Faculty.ID, &out.Faculty.Code, &out.Faculty.NameTH, &out.Faculty.NameEN,
 		&out.AvgRating, &out.ReviewCount,
 	)
@@ -185,6 +192,27 @@ func (r *coursePgRepo) GetByID(ctx context.Context, id int) (*entity.Course, err
 		return nil, err
 	}
 	return out, nil
+}
+
+func (r *coursePgRepo) UpdateAISummary(ctx context.Context, id int, summary string, reviewCount int, lastReviewID int64) error {
+	const q = `
+		UPDATE courses
+		SET ai_summary                 = $2,
+		    ai_summary_review_count    = $3,
+		    ai_summary_last_review_id  = $4
+		WHERE id = $1`
+	res, err := r.db.ExecContext(ctx, q, id, summary, reviewCount, lastReviewID)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return domainerrors.ErrCourseNotFound
+	}
+	return nil
 }
 
 func mapCourseError(err error) error {

@@ -1,15 +1,17 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { CreateReviewPayload } from '@/types/review'
 import { PawRating } from './PawRating'
 import { InsightCheckboxes } from './InsightCheckboxes'
 import { ApiError } from '@/api/client'
 import { pickError } from '@/lib/humanErrors'
+import { confirmSubmit } from '@/lib/confirm'
 import { IconCheck } from './Icons'
 
 interface Props {
   courseId: number
   onSubmit: (payload: CreateReviewPayload) => Promise<void>
   onCancel?: () => void
+  onDirtyChange?: (dirty: boolean) => void
 }
 
 const GRADES = ['A', 'B+', 'B', 'C+', 'C', 'D+', 'D', 'F', 'W']
@@ -47,7 +49,7 @@ type ReviewFieldKey =
 
 type ReviewFieldErrors = Partial<Record<ReviewFieldKey, string>>
 
-export function ReviewForm({ courseId: _courseId, onSubmit, onCancel }: Props) {
+export function ReviewForm({ courseId: _courseId, onSubmit, onCancel, onDirtyChange }: Props) {
   const [rating, setRating] = useState(0)
   const [grade, setGrade] = useState('')
   const [academicYear, setAcademicYear] = useState(CURRENT_YEAR)
@@ -67,6 +69,24 @@ export function ReviewForm({ courseId: _courseId, onSubmit, onCancel }: Props) {
 
   const programValue = program === 'อื่นๆ' ? programCustom.trim() : program
   const categoryValue = category === 'อื่นๆ' ? categoryCustom.trim() : category
+
+  const dirty =
+    rating > 0 ||
+    !!grade ||
+    !!content ||
+    !!category ||
+    !!categoryCustom ||
+    !!professor.trim() ||
+    !!reviewerName ||
+    !!programCustom ||
+    insightTags.length > 0 ||
+    academicYear !== CURRENT_YEAR ||
+    semester !== 1 ||
+    program !== 'ปกติ'
+
+  useEffect(() => {
+    onDirtyChange?.(dirty && !success)
+  }, [dirty, success, onDirtyChange])
 
   const validateField = (key: ReviewFieldKey): string => {
     switch (key) {
@@ -137,6 +157,13 @@ export function ReviewForm({ courseId: _courseId, onSubmit, onCancel }: Props) {
       if (next.content && content.trim().length < 30) return setError(pickError('REVIEW_TOO_SHORT'))
       return setError(pickError('REQUIRED_FIELD_MISSING'))
     }
+
+    const ok = await confirmSubmit({
+      title: 'ยืนยันโพสต์รีวิว?',
+      text: 'ตรวจสอบรายละเอียดก่อนส่งให้รุ่นน้องอ่านนะ',
+      confirmText: 'โพสต์เลย',
+    })
+    if (!ok) return
 
     setLoading(true)
     try {

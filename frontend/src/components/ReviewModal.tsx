@@ -33,7 +33,7 @@ export function ReviewModal({ review, courseCode, courseName, onClose }: Props) 
     }
   }, [review])
 
-  useEffect(() => { if (review) closeBtnRef.current?.focus() }, [review])
+  useEffect(() => { if (review) closeBtnRef.current?.focus({ preventScroll: true }) }, [review])
 
   useEffect(() => {
     if (!review) return

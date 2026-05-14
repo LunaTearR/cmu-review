@@ -4,6 +4,7 @@ import type { Faculty } from '@/types/faculty'
 import { fetchFaculties, createCourse } from '@/api/courses'
 import { ApiError } from '@/api/client'
 import { pickError } from '@/lib/humanErrors'
+import { confirmDiscard, confirmSubmit } from '@/lib/confirm'
 import { IconBack, IconCheck, IconExternal } from '@/components/Icons'
 import { useDataRefresh } from '@/context/DataRefreshContext'
 
@@ -99,6 +100,24 @@ export function CreateCoursePage() {
 
   const requiredFilled = !!(form.course_id && form.name_th && form.name_en && form.faculty_id)
 
+  const dirty = !!(
+    form.course_id ||
+    form.name_th ||
+    form.name_en ||
+    form.faculty_id ||
+    form.description ||
+    form.prerequisite ||
+    form.credits !== 3
+  )
+
+  const handleCancel = async () => {
+    if (dirty) {
+      const ok = await confirmDiscard()
+      if (!ok) return
+    }
+    navigate('/')
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const keys: (keyof CourseFormState)[] = ['course_id', 'name_th', 'name_en', 'credits', 'faculty_id', 'description', 'prerequisite']
@@ -112,6 +131,12 @@ export function CreateCoursePage() {
       setError(pickError('REQUIRED_FIELD_MISSING'))
       return
     }
+    const ok = await confirmSubmit({
+      title: 'ยืนยันเพิ่มรายวิชา?',
+      text: 'ตรวจสอบข้อมูลให้ครบถ้วนก่อนเพิ่มเข้าระบบนะ',
+      confirmText: 'เพิ่มรายวิชา',
+    })
+    if (!ok) return
     setError(null); setSubmitting(true)
     try {
       const course = await createCourse({ ...form, credits: Number(form.credits), faculty_id: Number(form.faculty_id) })
@@ -266,7 +291,7 @@ export function CreateCoursePage() {
         {error && <div style={{ color: 'var(--accent-rose)', fontWeight: 600, marginTop: 12 }}>{error}</div>}
 
         <div className="form-actions">
-          <button type="button" className="btn btn-ghost btn-lg" onClick={() => navigate('/')}>ยกเลิก</button>
+          <button type="button" className="btn btn-ghost btn-lg" onClick={handleCancel}>ยกเลิก</button>
           <button type="submit" className="btn btn-primary btn-lg" disabled={!requiredFilled || submitting}>
             <IconCheck /> {submitting ? 'กำลังบันทึก...' : 'เพิ่มวิชา'}
           </button>

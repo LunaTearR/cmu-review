@@ -15,6 +15,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"cmu-review-backend/configs"
+	"cmu-review-backend/internal/adapter/aisummary"
 	cacheAdapter "cmu-review-backend/internal/adapter/cache"
 	adapthttp "cmu-review-backend/internal/adapter/http"
 	"cmu-review-backend/internal/adapter/http/handler"
@@ -24,6 +25,7 @@ import (
 	"cmu-review-backend/internal/domain/repository"
 	courseuc "cmu-review-backend/internal/usecase/course"
 	facultyuc "cmu-review-backend/internal/usecase/faculty"
+	"cmu-review-backend/internal/usecase/port"
 	reviewuc "cmu-review-backend/internal/usecase/review"
 )
 
@@ -81,12 +83,27 @@ func main() {
 		spamcheck.ContentValidator{MinLen: 10},
 	}
 
+	// AI summary generator (Gemini). Nil if no API key — summary feature disables itself.
+	var summaryGen port.SummaryGenerator
+	if cfg.Gemini.APIKey != "" {
+		summaryGen = aisummary.NewGeminiClient(aisummary.GeminiConfig{
+			APIKey:  cfg.Gemini.APIKey,
+			Model:   cfg.Gemini.Model,
+			Timeout: time.Duration(cfg.Gemini.TimeoutSec) * time.Second,
+		})
+		log.Printf("gemini configured: model=%s", cfg.Gemini.Model)
+	} else {
+		log.Println("GEMINI_API_KEY empty; AI review summary disabled")
+	}
+
 	// use cases
 	createCourse := courseuc.NewCreateCourse(courseRepo)
 	listCourses := courseuc.NewListCourses(courseRepo)
 	getCourse := courseuc.NewGetCourse(courseRepo)
 	getCourseInsights := courseuc.NewGetCourseInsights(reviewRepo, courseRepo)
-	createReview := reviewuc.NewCreateReview(reviewRepo, courseRepo, spamPipeline)
+	generateSummary := courseuc.NewGenerateReviewSummary(reviewRepo, courseRepo, summaryGen)
+	createReview := reviewuc.NewCreateReview(reviewRepo, courseRepo, spamPipeline).
+		WithSummaryRegenerator(generateSummary)
 	listReviews := reviewuc.NewListReviewsByCourse(reviewRepo)
 	listPrograms := reviewuc.NewListPrograms(reviewRepo)
 	listFaculties := facultyuc.NewListFaculties(facultyRepo)
