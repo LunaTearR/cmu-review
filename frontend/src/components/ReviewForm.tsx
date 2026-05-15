@@ -4,7 +4,6 @@ import { PawRating } from './PawRating'
 import { InsightCheckboxes } from './InsightCheckboxes'
 import { ApiError } from '@/api/client'
 import { pickError } from '@/lib/humanErrors'
-import { confirmSubmit } from '@/lib/confirm'
 import { IconCheck } from './Icons'
 
 interface Props {
