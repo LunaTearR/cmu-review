@@ -221,15 +221,14 @@ export function CourseListPage() {
                 {query ? <>คำค้น "<b style={{ color: 'var(--ink-2)' }}>{query}</b>"</> : 'ทุกวิชาในระบบ'}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <div className="seg">
+            <div className="results-controls">
+              <div className="seg seg-sort">
                 <button className={sort === 'rating' ? 'is-active' : ''} onClick={() => setSort('rating')}>คะแนน</button>
                 <button className={sort === 'reviews' ? 'is-active' : ''} onClick={() => setSort('reviews')}>รีวิว</button>
-                <button className={sort === 'code' ? 'is-active' : ''} onClick={() => setSort('code')}>รหัส</button>
               </div>
-              <div className="seg">
-                <button className={density === 'grid' ? 'is-active' : ''} onClick={() => setDensity('grid')} title="แบบการ์ด"><IconGrid /></button>
-                <button className={density === 'list' ? 'is-active' : ''} onClick={() => setDensity('list')} title="แบบรายการ"><IconList /></button>
+              <div className="seg seg-density">
+                <button className={density === 'grid' ? 'is-active' : ''} onClick={() => setDensity('grid')} title="แบบการ์ด" aria-label="แบบการ์ด"><IconGrid /></button>
+                <button className={density === 'list' ? 'is-active' : ''} onClick={() => setDensity('list')} title="แบบรายการ" aria-label="แบบรายการ"><IconList /></button>
               </div>
             </div>
           </div>

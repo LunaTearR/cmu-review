@@ -30,7 +30,7 @@ export function CourseDetailPage() {
   const [courseLoading, setCourseLoading] = useState(true)
   const [reviewsLoading, setReviewsLoading] = useState(true)
   const [selectedReview, setSelectedReview] = useState<Review | null>(null)
-  const [sort, setSort] = useState<'recent' | 'helpful' | 'high' | 'low'>('recent')
+  const [sort, setSort] = useState<'recent' | 'high' | 'low'>('recent')
 
   useEffect(() => {
     setCourseLoading(true)
@@ -109,7 +109,20 @@ export function CourseDetailPage() {
           </div>
 
           <h1 className="h-display" style={{ marginBottom: 8, maxWidth: 800, textWrap: 'balance' }}>{course.name_th}</h1>
-          <p className="body-lg" style={{ color: 'var(--ink-3)', marginBottom: 24 }}>{course.name_en}</p>
+          <p className="body-lg" style={{ color: 'var(--ink-3)', marginBottom: 18 }}>{course.name_en}</p>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', marginBottom: 20 }}>
+            <span style={{ fontSize: 32, fontWeight: 700, lineHeight: 1, color: 'var(--ink-1)' }}>
+              {course.avg_rating.toFixed(1)}
+            </span>
+            <PawRating value={course.avg_rating} size={22} />
+            <span className="caption">จาก {course.review_count} รีวิว</span>
+            {course.review_count > 0 && (
+              <span className="caption" style={{ color: 'var(--brand-deep)', fontWeight: 600 }}>
+                · {recommend}% แนะนำ
+              </span>
+            )}
+          </div>
 
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <button className="btn btn-primary btn-lg" onClick={() => openReview({ courseId: course.id, onSuccess: optimisticAddReview })}>

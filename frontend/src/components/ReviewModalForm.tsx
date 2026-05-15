@@ -59,6 +59,7 @@ export function ReviewModalForm({ preselectCourseId, onSuccess, onCancel, onDirt
     setCourse(c)
     setCourseQuery(`${c.course_id} — ${c.name_th}`)
     setShowDD(false)
+    setLocked(true)
   }
 
   const confirmCourse = () => {
