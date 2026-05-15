@@ -75,7 +75,7 @@ export function AISummaryCard({ summary }: AISummaryCardProps) {
               color: 'color-mix(in oklab, var(--brand-deep) 70%, var(--ink-3))',
             }}
           >
-            สังเคราะห์จากรีวิวจริงของผู้เรียนวิชานี้
+            สังเคราะห์จากรีวิวจริงของผู้เรียนวิชานี้ · อาจคลาดเคลื่อน โปรดอ่านรีวิวต้นทางประกอบ
           </div>
         </div>
       </header>

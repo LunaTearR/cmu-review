@@ -4,7 +4,6 @@ import { PawRating } from './PawRating'
 import { InsightCheckboxes } from './InsightCheckboxes'
 import { ApiError } from '@/api/client'
 import { pickError } from '@/lib/humanErrors'
-import { confirmSubmit } from '@/lib/confirm'
 import { IconCheck } from './Icons'
 
 interface Props {
@@ -91,7 +90,7 @@ export function ReviewForm({ courseId: _courseId, onSubmit, onCancel, onDirtyCha
   const validateField = (key: ReviewFieldKey): string => {
     switch (key) {
       case 'rating': return rating > 0 ? '' : 'อย่าลืมแตะอุ้งเท้าให้คะแนนนะ'
-      case 'grade': return grade ? '' : 'เลือกเกรดที่ได้ด้วยน้า'
+      case 'grade': return ''
       case 'academicYear': {
         const n = Number(academicYear)
         if (!Number.isInteger(n) || n < 2560 || n > CURRENT_YEAR) return `ปีการศึกษาต้องอยู่ระหว่าง 2560–${CURRENT_YEAR}`
@@ -109,8 +108,7 @@ export function ReviewForm({ courseId: _courseId, onSubmit, onCancel, onDirtyCha
       }
       case 'professor': {
         const v = professor.trim()
-        if (!v) return 'กรอกชื่ออาจารย์ผู้สอนด้วยน้า'
-        if (v.length < 2) return 'ชื่ออาจารย์สั้นไปนิด'
+        if (v && v.length < 2) return 'ชื่ออาจารย์สั้นไปนิด'
         return ''
       }
       case 'reviewerName':
@@ -118,7 +116,7 @@ export function ReviewForm({ courseId: _courseId, onSubmit, onCancel, onDirtyCha
       case 'content': {
         const len = content.trim().length
         if (!len) return 'เล่าประสบการณ์ให้รุ่นน้องฟังหน่อยนะ'
-        if (len < 30) return `รีวิวสั้นไป ยังขาดอีก ${30 - len} ตัวอักษร`
+        if (len < 15) return `รีวิวสั้นไป ยังขาดอีก ${15 - len} ตัวอักษร`
         if (content.length > 2000) return 'รีวิวยาวเกิน 2000 ตัวอักษร'
         return ''
       }
@@ -135,9 +133,7 @@ export function ReviewForm({ courseId: _courseId, onSubmit, onCancel, onDirtyCha
 
   const requiredFilled =
     rating > 0 &&
-    !!grade &&
-    !!professor.trim() &&
-    content.trim().length >= 30 &&
+    content.trim().length >= 15 &&
     !!categoryValue &&
     (program !== 'อื่นๆ' || !!programCustom.trim())
 
@@ -154,16 +150,9 @@ export function ReviewForm({ courseId: _courseId, onSubmit, onCancel, onDirtyCha
     setFieldErrors(next)
     if (Object.values(next).some(Boolean)) {
       if (next.rating) return setError(pickError('RATING_MISSING'))
-      if (next.content && content.trim().length < 30) return setError(pickError('REVIEW_TOO_SHORT'))
+      if (next.content && content.trim().length < 15) return setError(pickError('REVIEW_TOO_SHORT'))
       return setError(pickError('REQUIRED_FIELD_MISSING'))
     }
-
-    const ok = await confirmSubmit({
-      title: 'ยืนยันโพสต์รีวิว?',
-      text: 'ตรวจสอบรายละเอียดก่อนส่งให้รุ่นน้องอ่านนะ',
-      confirmText: 'โพสต์เลย',
-    })
-    if (!ok) return
 
     setLoading(true)
     try {
@@ -214,6 +203,9 @@ export function ReviewForm({ courseId: _courseId, onSubmit, onCancel, onDirtyCha
           <div className="body-sm" style={{ marginTop: 10, minHeight: 22, fontWeight: 600, color: 'var(--brand-deep)' }}>
             {rating ? RATING_LABELS[rating] : 'แตะอุ้งเท้าเพื่อให้คะแนน'}
           </div>
+          <div className="caption" style={{ marginTop: 4, color: 'var(--ink-4)' }}>
+            1 = ไม่แนะนำเลย · 5 = แนะนำมาก
+          </div>
         </div>
       </div>
 
@@ -222,7 +214,7 @@ export function ReviewForm({ courseId: _courseId, onSubmit, onCancel, onDirtyCha
         <div className="form-stack">
           <div className="form-row-3">
             <div className="field">
-              <label className="field-label">เกรดที่ได้ <span className="req">*</span></label>
+              <label className="field-label">เกรดที่ได้ <span style={{ color: 'var(--ink-4)', fontWeight: 400 }}>(ไม่บังคับ)</span></label>
               <select
                 className={`input${fieldErrors.grade ? ' has-error' : ''}`}
                 value={grade}
@@ -310,10 +302,10 @@ export function ReviewForm({ courseId: _courseId, onSubmit, onCancel, onDirtyCha
           </div>
 
           <div className="field">
-            <label className="field-label">อาจารย์ผู้สอน <span className="req">*</span></label>
+            <label className="field-label">อาจารย์ผู้สอน <span style={{ color: 'var(--ink-4)', fontWeight: 400 }}>(ไม่บังคับ)</span></label>
             <input
               className={`input${fieldErrors.professor ? ' has-error' : ''}`}
-              placeholder="เช่น ผศ.ดร.ภัทรชนน วงศ์เกียรติ"
+              placeholder="เช่น อ.สมชาย"
               value={professor}
               onChange={(e) => { setProfessor(e.target.value); clearError('professor') }}
               onBlur={() => blurValidate('professor')}
@@ -355,9 +347,9 @@ export function ReviewForm({ courseId: _courseId, onSubmit, onCancel, onDirtyCha
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
             {fieldErrors.content
               ? <span className="field-error">{fieldErrors.content}</span>
-              : <span className="field-hint">เขียนอย่างน้อย 30 ตัวอักษร — ยิ่งเล่ารายละเอียดยิ่งช่วยรุ่นน้อง</span>}
-            <span className="caption mono" style={{ color: content.length >= 30 ? 'var(--accent-mint)' : 'var(--ink-4)' }}>
-              {content.length}{content.length >= 30 ? ' ✓' : ''}
+              : <span className="field-hint">เขียนอย่างน้อย 15 ตัวอักษร — ยิ่งเล่ารายละเอียดยิ่งช่วยรุ่นน้อง</span>}
+            <span className="caption mono" style={{ color: content.length >= 15 ? 'var(--accent-mint)' : 'var(--ink-4)' }}>
+              {content.length}{content.length >= 15 ? ' ✓' : ''}
             </span>
           </div>
         </div>

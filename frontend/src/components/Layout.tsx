@@ -1,6 +1,6 @@
-import { Link, useLocation } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { IconPlus, IconPen, IconSun, IconMoon } from './Icons'
+import { IconPen, IconSun, IconMoon } from './Icons'
 import { useReviewModal } from '@/context/ReviewModalContext'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faBookOpen } from '@fortawesome/free-solid-svg-icons'
@@ -10,7 +10,6 @@ interface Props {
 }
 
 export function Layout({ children }: Props) {
-  const loc = useLocation()
   const { open: openReview } = useReviewModal()
   const [dark, setDark] = useState<boolean>(() => localStorage.getItem('theme') === 'dark')
 
@@ -18,12 +17,6 @@ export function Layout({ children }: Props) {
     document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light')
     localStorage.setItem('theme', dark ? 'dark' : 'light')
   }, [dark])
-
-  // forward active faculty filter from /search → /courses/new so faculty pre-fills
-  const activeFaculty = new URLSearchParams(loc.search).get('faculty') ?? ''
-  const addCourseHref = activeFaculty
-    ? `/courses/new?faculty=${encodeURIComponent(activeFaculty)}`
-    : '/courses/new'
 
   return (
     <>
@@ -35,9 +28,6 @@ export function Layout({ children }: Props) {
           </Link>
 
           <div className="nav-actions">
-            <Link to={addCourseHref} className="btn btn-ghost btn-sm" aria-label="เพิ่มวิชา">
-              <IconPlus /> <span className="nav-text">เพิ่มวิชา</span>
-            </Link>
             <button className="btn btn-primary btn-sm" onClick={() => openReview()} aria-label="เขียนรีวิว">
               <IconPen /> <span className="nav-text">เขียนรีวิว</span>
             </button>

@@ -301,6 +301,13 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
   padding: 7px 14px; border-radius: var(--r-pill);
   color: var(--ink-3); font-size: 13.5px; font-weight: 500;
   cursor: pointer; transition: all 0.15s var(--t-easing);
+  min-height: 32px;
+}
+
+/* sort+density row: wraps on narrow viewports so neither control hides */
+.results-controls {
+  display: flex; gap: 8px; align-items: center;
+  flex-wrap: wrap;
 }
 .seg button:hover { color: var(--ink-1); }
 .seg button.is-active {
@@ -1080,7 +1087,16 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
   .course-card { padding: 18px; }
   .course-card .cc-title { font-size: 17px; }
 
-  .seg { width: 100%; overflow-x: auto; }
+  /* mobile: compact chip-style segments, inline horizontal, wrap as safety net */
+  .results-controls { gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  .results-controls .seg { padding: 3px; flex: 0 0 auto; }
+  .results-controls .seg button {
+    padding: 6px 12px; font-size: 12.5px; min-height: 32px;
+    flex: 0 0 auto;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .results-controls .seg-density button { padding: 6px 9px; }
+  .results-controls .seg-density svg { width: 16px; height: 16px; }
 
   .detail-hero { padding: 28px 0 24px; }
   .detail-layout { padding-block: 24px 48px; gap: 24px; }
