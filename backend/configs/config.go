@@ -11,6 +11,14 @@ type Config struct {
 	Database DatabaseConfig
 	Redis    RedisConfig
 	Gemini   GeminiConfig
+	Intent   IntentConfig
+}
+
+type IntentConfig struct {
+	// ConfigPath is the JSON file used by intent.JSONMapper to map Thai
+	// query phrases to DB filters. Missing file = mapper runs as no-op
+	// (semantic search still works, just without intent-based filtering).
+	ConfigPath string
 }
 
 type GeminiConfig struct {
@@ -61,6 +69,7 @@ func Load() *Config {
 		"PGHOST", "PGPORT", "PGUSER", "PGPASSWORD", "PGDATABASE",
 		"REDIS_URL",
 		"GEMINI_API_KEY",
+		"INTENT_CONFIG_PATH",
 	} {
 		_ = viper.BindEnv(key)
 	}
@@ -77,6 +86,7 @@ func Load() *Config {
 	viper.SetDefault("REDIS_FACULTY_TTL_SECONDS", 3600)
 	viper.SetDefault("GEMINI_MODEL", "gemini-3.1-flash-lite")
 	viper.SetDefault("GEMINI_TIMEOUT_SECONDS", 30)
+	viper.SetDefault("INTENT_CONFIG_PATH", "./configs/intent.json")
 
 	port := viper.GetString("PORT")
 	if port == "" {
@@ -108,6 +118,9 @@ func Load() *Config {
 			APIKey:     viper.GetString("GEMINI_API_KEY"),
 			Model:      viper.GetString("GEMINI_MODEL"),
 			TimeoutSec: viper.GetInt("GEMINI_TIMEOUT_SECONDS"),
+		},
+		Intent: IntentConfig{
+			ConfigPath: viper.GetString("INTENT_CONFIG_PATH"),
 		},
 	}
 }

@@ -7,9 +7,10 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o server  ./cmd/main.go && \
-    CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o migrate ./cmd/migrate/main.go && \
-    CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o seed    ./cmd/seed/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o server   ./cmd/main.go && \
+    CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o migrate  ./cmd/migrate/main.go && \
+    CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o seed     ./cmd/seed/main.go && \
+    CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o backfill ./cmd/backfill_embeddings/main.go
 
 # --- runtime stage ---
 FROM alpine:3.20
@@ -22,7 +23,9 @@ WORKDIR /app
 COPY --from=builder /app/server   .
 COPY --from=builder /app/migrate  .
 COPY --from=builder /app/seed     .
+COPY --from=builder /app/backfill .
 COPY --from=builder /app/migrations ./migrations
+COPY --from=builder /app/configs/intent.json ./configs/intent.json
 
 EXPOSE 8080
 

@@ -242,10 +242,58 @@ export function CourseListPage() {
           ) : courses.length === 0 ? (
             <div className="empty-state card">
               <div style={{ fontSize: 38, marginBottom: 10 }}>🔍</div>
-              <div className="h-3" style={{ marginBottom: 6 }}>ไม่พบวิชาที่ค้นหา</div>
-              <div className="body-sm" style={{ marginBottom: 18 }}>ลองปรับคำค้น หรือถ้ายังไม่มีในระบบ ช่วยกันเพิ่มได้</div>
+              <div className="h-3" style={{ marginBottom: 6 }}>
+                {query ? `ไม่พบวิชาที่ตรงกับ "${query}"` : 'ไม่พบวิชาที่ค้นหา'}
+              </div>
+              <div className="body-sm" style={{ marginBottom: 18 }}>
+                {query
+                  ? 'ลองค้นแบบความหมายแทน — AI จะหาวิชาที่รีวิวตรงกับสิ่งที่คุณบรรยาย'
+                  : 'ลองปรับคำค้น หรือถ้ายังไม่มีในระบบ ช่วยกันเพิ่มได้'}
+              </div>
+
+              {query && (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 12,
+                    marginBottom: 14,
+                  }}
+                >
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => navigate(`/discover?q=${encodeURIComponent(query)}`)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      background:
+                        'linear-gradient(135deg, var(--brand-deep), var(--accent-rose))',
+                    }}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden
+                    >
+                      <path d="M12 3l1.6 4.6L18 9l-4.4 1.4L12 15l-1.6-4.6L6 9l4.4-1.4L12 3z" />
+                      <path d="M19 14l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7L19 14z" />
+                    </svg>
+                    ลองค้นด้วย AI: "{query}"
+                  </button>
+                  <div className="caption">หรือ</div>
+                </div>
+              )}
+
               <button
-                className="btn btn-primary"
+                className="btn btn-ghost"
                 onClick={() => navigate(facCode ? `/courses/new?faculty=${encodeURIComponent(facCode)}` : '/courses/new')}
               >
                 <IconPlus /> เพิ่มวิชาใหม่

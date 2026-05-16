@@ -16,6 +16,7 @@ export function HomePage() {
   const { open: openReview } = useReviewModal()
   const { coursesV } = useDataRefresh()
   const [query, setQuery] = useState('')
+  const [vibeQuery, setVibeQuery] = useState('')
   const [topCourses, setTopCourses] = useState<Course[]>([])
   const [topFreeElectives, setTopFreeElectives] = useState<Course[]>([])
   const [faculties, setFaculties] = useState<Faculty[]>([])
@@ -38,6 +39,15 @@ export function HomePage() {
 
   const onSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') navigate(`/search?q=${encodeURIComponent(query)}`)
+  }
+
+  const goDiscover = (q: string) => {
+    const t = q.trim()
+    if (!t) navigate('/discover')
+    else navigate(`/discover?q=${encodeURIComponent(t)}`)
+  }
+  const onVibeSubmit = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') goDiscover(vibeQuery)
   }
 
   return (
@@ -64,6 +74,85 @@ export function HomePage() {
             <button className="btn btn-primary" onClick={() => navigate(`/search?q=${encodeURIComponent(query)}`)}>
               ค้นหา
             </button>
+          </div>
+
+          <div
+            className="vibe-search-card"
+            style={{
+              marginTop: 22,
+              padding: '20px 22px',
+              borderRadius: 'var(--r-xl)',
+              background:
+                'linear-gradient(135deg, color-mix(in oklab, var(--brand-tint) 92%, white) 0%, color-mix(in oklab, var(--accent-rose) 18%, var(--bg-soft)) 100%)',
+              border: '1px solid color-mix(in oklab, var(--brand) 25%, var(--border))',
+              boxShadow: 'var(--shadow-sm)',
+              maxWidth: 720,
+              marginLeft: 'auto',
+              marginRight: 'auto',
+              textAlign: 'left',
+            }}
+          >
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '4px 12px',
+                borderRadius: 'var(--r-pill)',
+                background: 'color-mix(in oklab, var(--brand) 18%, transparent)',
+                color: 'var(--brand-deep)',
+                fontSize: 12,
+                fontWeight: 600,
+                marginBottom: 10,
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M12 3l1.6 4.6L18 9l-4.4 1.4L12 15l-1.6-4.6L6 9l4.4-1.4L12 3z" />
+                <path d="M19 14l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7L19 14z" />
+              </svg>
+              ใหม่ — ค้นด้วย AI
+            </div>
+            <h3 className="h-3" style={{ margin: 0, color: 'var(--brand-deep)' }}>
+              ไม่รู้ว่าจะลงตัวไหน? ลองบอกสิ่งที่อยากได้ดูสิ
+            </h3>
+            <p className="body-sm" style={{ marginTop: 4, marginBottom: 12, color: 'var(--ink-2)' }}>
+              เช่น "งานน้อย ไม่สอบ", "ตัวฟรี ไม่เข้าเรียน", "เกรดดี อาจารย์น่ารัก"
+            </p>
+            <div className="search-hero" style={{ marginTop: 0, boxShadow: 'none' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M12 3l1.6 4.6L18 9l-4.4 1.4L12 15l-1.6-4.6L6 9l4.4-1.4L12 3z" />
+                <path d="M19 14l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7L19 14z" />
+              </svg>
+              <input
+                placeholder='พิมพ์สิ่งที่อยากค้นหา เช่น "ตัวฟรี ไม่เข้าเรียน"'
+                value={vibeQuery}
+                onChange={(e) => setVibeQuery(e.target.value)}
+                onKeyDown={onVibeSubmit}
+              />
+              <button className="btn btn-primary" onClick={() => goDiscover(vibeQuery)}>
+                ลองดู
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
+              {['งานน้อย', 'ไม่สอบ', 'เกรดดี', 'ตัวฟรี'].map(s => (
+                <button
+                  key={s}
+                  onClick={() => goDiscover(s)}
+                  className="tag"
+                  style={{
+                    cursor: 'pointer',
+                    border: '1px solid color-mix(in oklab, var(--brand) 35%, var(--border-strong))',
+                    background: 'var(--surface)',
+                    color: 'var(--ink-1)',
+                    fontWeight: 600,
+                    fontSize: 13,
+                    padding: '5px 12px',
+                  }}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </section>

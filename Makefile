@@ -4,6 +4,7 @@
         migrate-up migrate-down migrate-create \
         dev-migrate-up dev-migrate-down \
         seed-faculties dev-seed-faculties \
+        backfill-embeddings dev-backfill-embeddings \
         db-shell clean
 
 BACKEND_DIR  := ./backend
@@ -93,6 +94,12 @@ seed-faculties: ## Seed all CMU faculties into the database (prod stack)
 
 dev-seed-faculties: ## Seed all CMU faculties into the database (dev stack)
 	docker compose -f docker-compose.dev.yml exec backend go run ./cmd/seed/main.go
+
+backfill-embeddings: ## Embed all reviews missing vectors (prod stack)
+	docker compose exec backend /app/backfill
+
+dev-backfill-embeddings: ## Embed all reviews missing vectors (dev stack)
+	docker compose -f docker-compose.dev.yml exec backend go run ./cmd/backfill_embeddings/main.go
 
 # ── Misc ──────────────────────────────────────────────────────────────────────
 
