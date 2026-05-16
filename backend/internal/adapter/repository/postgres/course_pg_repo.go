@@ -84,6 +84,15 @@ func (r *coursePgRepo) List(ctx context.Context, opts repository.CourseListOpts)
 	}
 	progArg := pq.Array(programs)
 
+	tags := opts.Tags
+	if tags == nil {
+		tags = []string{}
+	}
+	tagArg := pq.Array(tags)
+
+	// $7 = tags filter. Overlap (&&) on reviews.insight_tags so a course
+	// counts as a hit when ANY of its visible reviews carry any of the
+	// requested tags. EXISTS keeps the plan from inflating row counts.
 	const where = `
 		WHERE (cardinality($1::text[]) = 0 OR f.code = ANY($1::text[]))
 		  AND ($2 = 0  OR c.credits = $2)
@@ -105,6 +114,12 @@ func (r *coursePgRepo) List(ctx context.Context, opts repository.CourseListOpts)
 		        WHERE rv3.course_id = c.id
 		          AND rv3.program = ANY($6::text[])
 		          AND NOT rv3.is_hidden
+		      ))
+		  AND (cardinality($7::text[]) = 0 OR EXISTS (
+		        SELECT 1 FROM reviews rv4
+		        WHERE rv4.course_id = c.id
+		          AND rv4.insight_tags && $7::text[]
+		          AND NOT rv4.is_hidden
 		      ))`
 
 	countQ := `SELECT COUNT(DISTINCT c.id)
@@ -113,7 +128,7 @@ func (r *coursePgRepo) List(ctx context.Context, opts repository.CourseListOpts)
 
 	var total int
 	if err := r.db.QueryRowContext(ctx, countQ,
-		facArg, opts.Credits, opts.Search, likeContains, opts.Category, progArg,
+		facArg, opts.Credits, opts.Search, likeContains, opts.Category, progArg, tagArg,
 	).Scan(&total); err != nil {
 		return nil, 0, err
 	}
@@ -146,10 +161,10 @@ func (r *coursePgRepo) List(ctx context.Context, opts repository.CourseListOpts)
 		where + `
 		GROUP BY c.id, f.id
 		ORDER BY ` + orderBy + `
-		LIMIT $7 OFFSET $8`
+		LIMIT $8 OFFSET $9`
 
 	rows, err := r.db.QueryContext(ctx, q,
-		facArg, opts.Credits, opts.Search, likeContains, opts.Category, progArg,
+		facArg, opts.Credits, opts.Search, likeContains, opts.Category, progArg, tagArg,
 		opts.Limit, opts.Offset,
 	)
 	if err != nil {

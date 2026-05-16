@@ -14,9 +14,12 @@ type CourseListOpts struct {
 	Credits   int      // 0 = all
 	Category  string
 	Programs  []string // empty = all; filters via reviews.program
-	SortBy    string
-	Limit     int
-	Offset    int
+	// Tags overlap reviews.insight_tags (text[] && operator).
+	// Empty = no tag restriction. Multiple tags = ANY-of overlap.
+	Tags     []string
+	SortBy   string
+	Limit    int
+	Offset   int
 }
 
 type CourseRepository interface {

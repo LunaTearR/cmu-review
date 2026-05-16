@@ -16,6 +16,7 @@ func Register(
 	reviewHandler *handler.ReviewHandler,
 	facultyHandler *handler.FacultyHandler,
 	courseHandler *handler.CourseHandler,
+	semanticHandler *handler.SemanticSearchHandler,
 	cors configs.CorsConfig,
 ) {
 	r.Use(middleware.CORS(middleware.CorsConfig{
@@ -36,6 +37,7 @@ func Register(
 
 	v1.GET("/courses", courseHandler.List)
 	v1.POST("/courses", courseHandler.Create)
+	v1.GET("/courses/semantic-search", semanticHandler.Search)
 	v1.GET("/courses/:id", courseHandler.Get)
 	v1.GET("/courses/:id/insights", courseHandler.Insights)
 	v1.GET("/courses/:id/reviews", reviewHandler.List)

@@ -1,0 +1,111 @@
+{
+  "_comment": "Thai intent → DB-filter map for semantic course search. Two layers: phrases assign abstract properties, properties resolve to actual DB filter strings. Edit freely — restart backend to pick up. See internal/adapter/intent/json_mapper.go for format docs.",
+
+  "phrases": [
+    { "match": "ตัวฟรี", "assign": { "isFree": "true" } },
+    { "match": "วิชาฟรี", "assign": { "isFree": "true" } },
+    { "match": "เลือกเสรี", "assign": { "isFree": "true" } },
+    { "match": "ศึกษาทั่วไป", "assign": { "isGE": "true" } },
+    { "match": "GE", "assign": { "isGE": "true" } },
+    { "match": "วิชาเอกเลือก", "assign": { "isMajor": "true" } },
+    { "match": "ตัวเอกเลือก", "assign": { "isMajor": "true" } },
+    { "match": "วิชาโท", "assign": { "isMinor": "true" } },
+    { "match": "ตัวโท", "assign": { "isMinor": "true" } },
+    { "match": "วิชาบังคับ", "assign": { "isCore": "true" } },
+    { "match": "ตัวบังคับ", "assign": { "isCore": "true" } },
+
+    { "match": "ภาคพิเศษ", "assign": { "isSpecial": "true" } },
+    { "match": "ภาคปกติ", "assign": { "isNormal": "true" } },
+    { "match": "นานาชาติ", "assign": { "isEnglish": "true" } },
+
+    { "match": "ไม่เข้าเรียน", "assign": { "attendance": "low" } },
+    { "match": "ไม่เช็คชื่อ", "assign": { "attendance": "low" } },
+    { "match": "เช็คชื่อทุกคาบ", "assign": { "attendance": "high" } },
+
+    { "match": "งานน้อย", "assign": { "workload": "low" } },
+    { "match": "งานเยอะ", "assign": { "workload": "high" } },
+    { "match": "งานสม่ำเสมอ", "assign": { "workload": "steady" } },
+
+    { "match": "ไม่สอบ", "assign": { "exam_style": "assignment_heavy" } },
+    { "match": "ไม่มีสอบ", "assign": { "exam_style": "assignment_heavy" } },
+    { "match": "เก็บคะแนนจากงาน", "assign": { "exam_style": "assignment_heavy" } },
+    { "match": "เน้นสอบ", "assign": { "exam_style": "exam_heavy" } },
+    { "match": "สอบง่าย", "assign": { "exam_difficulty": "low" } },
+
+    { "match": "เกรดดี", "assign": { "grade_friendly": "true" } },
+    { "match": "เก็บเกรดง่าย", "assign": { "grade_friendly": "true" } },
+    { "match": "ให้เกรดดี", "assign": { "grade_friendly": "true" } },
+    { "match": "เก็บaง่าย", "assign": { "grade_friendly": "true" } },
+    { "match": "เก็บเอง่าย", "assign": { "grade_friendly": "true" } },
+    { "match": "ได้aง่าย", "assign": { "grade_friendly": "true" } },
+    { "match": "ได้เอง่าย", "assign": { "grade_friendly": "true" } },
+    { "match": "เอาaง่าย", "assign": { "grade_friendly": "true" } },
+    { "match": "aง่าย", "assign": { "grade_friendly": "true" } },
+    { "match": "เกรดaง่าย", "assign": { "grade_friendly": "true" } },
+    { "match": "ผ่านง่าย", "assign": { "grade_friendly": "true" } },
+    { "match": "ผ่านได้", "assign": { "grade_friendly": "true" } },
+
+    { "match": "ออนไลน์", "assign": { "format": "online" } },
+    { "match": "สอนเข้าใจ", "assign": { "teaching": "clear" } },
+    { "match": "สอนละเอียด", "assign": { "teaching": "detailed" } },
+    { "match": "เคสจริง", "assign": { "teaching": "case_based" } },
+
+    { "match": "ใจดี", "assign": { "teaching": "kind" } },
+    { "match": "อาจารย์ใจดี", "assign": { "teaching": "kind" } }
+  ],
+
+  "properties": {
+    "isFree": {
+      "true": { "categories": ["หมวดวิชาฟรี"] }
+    },
+    "isGE": {
+      "true": { "categories": ["หมวดวิชาเลือกทั่วไป (GE)"] }
+    },
+    "isMajor": {
+      "true": { "categories": ["หมวดวิชาเอกเลือก"] }
+    },
+    "isMinor": {
+      "true": { "categories": ["หมวดวิชาโท"] }
+    },
+    "isCore": {
+      "true": { "categories": ["หมวดวิชาบังคับ"] }
+    },
+    "isSpecial": {
+      "true": { "programs": ["ภาคพิเศษ"] }
+    },
+    "isEnglish": {
+      "true": { "programs": ["นานาชาติ"] }
+    },
+    "isNormal": {
+      "true": { "programs": ["ภาคปกติ"] }
+    },
+    "attendance": {
+      "low": { "tags": ["ไม่เช็คชื่อ", "เหมาะกับคนไม่ชอบเข้าเรียน"] },
+      "high": { "tags": ["เช็คชื่อเกือบทุกคาบ"] }
+    },
+    "workload": {
+      "low": { "tags": ["งานน้อย ทำสบาย"] },
+      "high": { "tags": ["งานค่อนข้างเยอะ"] },
+      "steady": { "tags": ["งานสม่ำเสมอตลอดเทอม"] }
+    },
+    "exam_style": {
+      "assignment_heavy": { "tags": ["เก็บคะแนนจากงานเป็นหลัก"] },
+      "exam_heavy": { "tags": ["เน้นสอบเป็นหลัก"] }
+    },
+    "exam_difficulty": {
+      "low": { "tags": ["ข้อสอบอิงสไลด์ / ที่สอน"] }
+    },
+    "grade_friendly": {
+      "true": { "tags": ["เหมาะกับคนอยากเก็บเกรด", "ส่งงานครบคะแนนไม่ยาก"] }
+    },
+    "format": {
+      "online": { "tags": ["มีเรียนออนไลน์"] }
+    },
+    "teaching": {
+      "clear": { "tags": ["สอนเข้าใจง่าย"] },
+      "detailed": { "tags": ["สอนละเอียดเป็นขั้นตอน"] },
+      "case_based": { "tags": ["เน้นเล่าประสบการณ์ / เคสจริง"] },
+      "kind": { "tags": ["อาจารย์ใจดี"] }
+    }
+  }
+}

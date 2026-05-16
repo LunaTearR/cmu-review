@@ -37,11 +37,24 @@ func sanitizeTags(in []string) []string {
 	return out
 }
 
+// EmbedEnqueuer is the narrow contract CreateReviewUseCase needs to mark a
+// course for background embedding refresh. Implemented directly by
+// repository.EmbeddingQueueRepository — no wrapper use case needed because
+// the call is a single DB insert.
+//
+// Why an interface and not the concrete repository type: keeps this layer
+// free of adapter imports and lets the field stay nil when the embedding
+// pipeline is disabled (e.g. GEMINI_API_KEY unset).
+type EmbedEnqueuer interface {
+	Enqueue(ctx context.Context, courseID int) error
+}
+
 type CreateReviewUseCase struct {
-	reviews repository.ReviewRepository
-	courses repository.CourseRepository
-	spam    port.SpamChecker
-	summary SummaryRegenerator // optional — nil if AI summary disabled
+	reviews      repository.ReviewRepository
+	courses      repository.CourseRepository
+	spam         port.SpamChecker
+	summary      SummaryRegenerator // optional — nil if AI summary disabled
+	embedEnqueue EmbedEnqueuer      // optional — nil if embedding disabled
 }
 
 type CreateReviewInput struct {
@@ -73,6 +86,17 @@ func NewCreateReview(
 // Returns the receiver for chained construction in cmd/main.go.
 func (uc *CreateReviewUseCase) WithSummaryRegenerator(s SummaryRegenerator) *CreateReviewUseCase {
 	uc.summary = s
+	return uc
+}
+
+// WithEmbedEnqueuer wires the per-course embedding queue. After a
+// successful Create, the new review's courseID is enqueued for the
+// background worker to pick up (see adapter/worker.EmbeddingWorker).
+// Replaces the previous per-review goroutine model so a burst of N
+// reviews for the same course coalesces into a single queue row and a
+// single worker job.
+func (uc *CreateReviewUseCase) WithEmbedEnqueuer(e EmbedEnqueuer) *CreateReviewUseCase {
+	uc.embedEnqueue = e
 	return uc
 }
 
@@ -123,8 +147,29 @@ func (uc *CreateReviewUseCase) Execute(ctx context.Context, in CreateReviewInput
 	}
 
 	uc.maybeRegenerateSummary(created.CourseID)
+	uc.enqueueEmbed(ctx, created.CourseID)
 
 	return created, nil
+}
+
+// enqueueEmbed records the courseID in the embedding queue so the worker
+// will rebuild missing-vector reviews on its next tick. The call is
+// SYNCHRONOUS (sub-ms INSERT … ON CONFLICT DO NOTHING) — no goroutine —
+// because:
+//   - The DB write is fast and bounded; spawning a goroutine for it would
+//     leak more state than it saves wall-clock time.
+//   - A failed enqueue (DB blip) MUST NOT fail the review insert, so the
+//     error is logged and swallowed. Recovery: the next review for the
+//     same course will re-enqueue.
+//   - The actual embedding work (Gemini RPC, slow) is intentionally
+//     decoupled and runs entirely inside the background worker.
+func (uc *CreateReviewUseCase) enqueueEmbed(ctx context.Context, courseID int) {
+	if uc.embedEnqueue == nil {
+		return
+	}
+	if err := uc.embedEnqueue.Enqueue(ctx, courseID); err != nil {
+		log.Printf("embed_enqueue: course %d: %v", courseID, err)
+	}
 }
 
 // summaryFirstThreshold / summaryStepInterval mirror the constants in
