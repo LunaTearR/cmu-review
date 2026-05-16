@@ -8,24 +8,24 @@ import { IconArrow, IconBack } from '@/components/Icons'
 
 const SUGGESTIONS = ['ตัวฟรี', 'ไม่สอบ', 'เกรดดี', 'งานน้อย', 'อาจารย์น่ารัก', 'ไม่เข้าเรียน']
 
-const TAG_FILTERS: { group: string; tags: string[] }[] = [
-  {
-    group: 'งาน',
-    tags: ['งานน้อย ทำสบาย', 'งานค่อนข้างเยอะ', 'งานสม่ำเสมอตลอดเทอม', 'ส่งงานครบคะแนนไม่ยาก'],
-  },
-  {
-    group: 'สอบ / คะแนน',
-    tags: ['เน้นสอบเป็นหลัก', 'เก็บคะแนนจากงานเป็นหลัก', 'เหมาะกับคนอยากเก็บเกรด', 'ข้อสอบอิงสไลด์ / ที่สอน'],
-  },
-  {
-    group: 'การเข้าเรียน',
-    tags: ['ไม่เช็คชื่อ', 'เช็คชื่อเกือบทุกคาบ', 'มีเรียนออนไลน์', 'เหมาะกับคนไม่ชอบเข้าเรียน'],
-  },
-  {
-    group: 'การสอน',
-    tags: ['สอนเข้าใจง่าย', 'สอนละเอียดเป็นขั้นตอน', 'สอนตามสไลด์', 'เน้นเล่าประสบการณ์ / เคสจริง'],
-  },
-]
+// const TAG_FILTERS: { group: string; tags: string[] }[] = [
+//   {
+//     group: 'งาน',
+//     tags: ['งานน้อย ทำสบาย', 'งานค่อนข้างเยอะ', 'งานสม่ำเสมอตลอดเทอม', 'ส่งงานครบคะแนนไม่ยาก'],
+//   },
+//   {
+//     group: 'สอบ / คะแนน',
+//     tags: ['เน้นสอบเป็นหลัก', 'เก็บคะแนนจากงานเป็นหลัก', 'เหมาะกับคนอยากเก็บเกรด', 'ข้อสอบอิงสไลด์ / ที่สอน'],
+//   },
+//   {
+//     group: 'การเข้าเรียน',
+//     tags: ['ไม่เช็คชื่อ', 'เช็คชื่อเกือบทุกคาบ', 'มีเรียนออนไลน์', 'เหมาะกับคนไม่ชอบเข้าเรียน'],
+//   },
+//   {
+//     group: 'การสอน',
+//     tags: ['สอนเข้าใจง่าย', 'สอนละเอียดเป็นขั้นตอน', 'สอนตามสไลด์', 'เน้นเล่าประสบการณ์ / เคสจริง'],
+//   },
+// ]
 
 const Sparkle = ({ size = 18 }: { size?: number }) => (
   <svg
@@ -45,22 +45,22 @@ const Sparkle = ({ size = 18 }: { size?: number }) => (
   </svg>
 )
 
-const Chevron = ({ open }: { open: boolean }) => (
-  <svg
-    width={14}
-    height={14}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    style={{ transition: 'transform .2s var(--t-easing)', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
-    aria-hidden
-  >
-    <path d="M6 9l6 6 6-6" />
-  </svg>
-)
+// const Chevron = ({ open }: { open: boolean }) => (
+//   <svg
+//     width={14}
+//     height={14}
+//     viewBox="0 0 24 24"
+//     fill="none"
+//     stroke="currentColor"
+//     strokeWidth="2.2"
+//     strokeLinecap="round"
+//     strokeLinejoin="round"
+//     style={{ transition: 'transform .2s var(--t-easing)', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
+//     aria-hidden
+//   >
+//     <path d="M6 9l6 6 6-6" />
+//   </svg>
+// )
 
 function scoreBucket(score: number): { label: string; tone: 'strong' | 'medium' } | null {
   if (score >= 0.75) return { label: 'ตรงมาก', tone: 'strong' }
@@ -121,37 +121,37 @@ function Highlight({ text, tokens }: { text: string; tokens: string[] }) {
   )
 }
 
-function useIsWide(minPx = 1024) {
-  const query = `(min-width: ${minPx}px)`
-  const [wide, setWide] = useState<boolean>(() =>
-    typeof window !== 'undefined' ? window.matchMedia(query).matches : true,
-  )
-  useEffect(() => {
-    const mql = window.matchMedia(query)
-    const fn = (e: MediaQueryListEvent) => setWide(e.matches)
-    mql.addEventListener('change', fn)
-    return () => mql.removeEventListener('change', fn)
-  }, [query])
-  return wide
-}
+// function useIsWide(minPx = 1024) {
+//   const query = `(min-width: ${minPx}px)`
+//   const [wide, setWide] = useState<boolean>(() =>
+//     typeof window !== 'undefined' ? window.matchMedia(query).matches : true,
+//   )
+//   useEffect(() => {
+//     const mql = window.matchMedia(query)
+//     const fn = (e: MediaQueryListEvent) => setWide(e.matches)
+//     mql.addEventListener('change', fn)
+//     return () => mql.removeEventListener('change', fn)
+//   }, [query])
+//   return wide
+// }
 
 export function DiscoverPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const initialQuery = searchParams.get('q') ?? ''
   const initialTags = parseTags(searchParams.get('tags'))
-  const isWide = useIsWide(1024)
+  // const isWide = useIsWide(1024)
   const [input, setInput] = useState(initialQuery)
   const [submittedQuery, setSubmittedQuery] = useState(initialQuery)
   const [activeTags, setActiveTags] = useState<string[]>(initialTags)
-  const [filterOpen, setFilterOpen] = useState<boolean>(isWide)
+  // const [filterOpen, setFilterOpen] = useState<boolean>(isWide)
   const [hits, setHits] = useState<SemanticHit[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    setFilterOpen(isWide)
-  }, [isWide])
+  // useEffect(() => {
+  //   setFilterOpen(isWide)
+  // }, [isWide])
 
   useEffect(() => {
     const q = searchParams.get('q')?.trim() ?? ''
@@ -190,14 +190,14 @@ export function DiscoverPage() {
     writeUrl(t, activeTags)
   }
 
-  const toggleTag = (tag: string) => {
-    const next = activeTags.includes(tag)
-      ? activeTags.filter(t => t !== tag)
-      : [...activeTags, tag]
-    setActiveTags(next)
-    if (submittedQuery) writeUrl(submittedQuery, next)
-    else if (input.trim()) writeUrl(input, next)
-  }
+  // const toggleTag = (tag: string) => {
+  //   const next = activeTags.includes(tag)
+  //     ? activeTags.filter(t => t !== tag)
+  //     : [...activeTags, tag]
+  //   setActiveTags(next)
+  //   if (submittedQuery) writeUrl(submittedQuery, next)
+  //   else if (input.trim()) writeUrl(input, next)
+  // }
 
   const clearTags = () => {
     setActiveTags([])
@@ -426,179 +426,179 @@ export function DiscoverPage() {
   )
 }
 
-function FilterPanel({
-  open,
-  onToggle,
-  activeTags,
-  toggleTag,
-  clearTags,
-}: {
-  open: boolean
-  onToggle: () => void
-  activeTags: string[]
-  toggleTag: (t: string) => void
-  clearTags: () => void
-}) {
-  const count = activeTags.length
-  return (
-    <div style={{ marginTop: 20 }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 8,
-          flexWrap: 'wrap',
-        }}
-      >
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-expanded={open}
-          aria-controls="discover-filter-body"
-          className="btn btn-ghost btn-sm"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '8px 14px',
-            minHeight: 40,
-            fontWeight: 600,
-            color: 'var(--brand-deep)',
-            border: '1px solid color-mix(in oklab, var(--brand) 25%, var(--border))',
-            background: 'var(--surface)',
-          }}
-        >
-          ปรับการค้นหา
-          {count > 0 && (
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minWidth: 20,
-                height: 20,
-                padding: '0 6px',
-                fontSize: 12,
-                fontWeight: 700,
-                color: 'white',
-                background: 'var(--accent-rose)',
-                borderRadius: 999,
-              }}
-            >
-              {count}
-            </span>
-          )}
-          <Chevron open={open} />
-        </button>
-        {count > 0 && (
-          <button
-            type="button"
-            onClick={clearTags}
-            className="btn btn-ghost btn-sm"
-            style={{ padding: '4px 10px' }}
-          >
-            ล้างทั้งหมด
-          </button>
-        )}
-      </div>
+// function FilterPanel({
+//   open,
+//   onToggle,
+//   activeTags,
+//   toggleTag,
+//   clearTags,
+// }: {
+//   open: boolean
+//   onToggle: () => void
+//   activeTags: string[]
+//   toggleTag: (t: string) => void
+//   clearTags: () => void
+// }) {
+//   const count = activeTags.length
+//   return (
+//     <div style={{ marginTop: 20 }}>
+//       <div
+//         style={{
+//           display: 'flex',
+//           alignItems: 'center',
+//           justifyContent: 'space-between',
+//           gap: 8,
+//           flexWrap: 'wrap',
+//         }}
+//       >
+//         <button
+//           type="button"
+//           onClick={onToggle}
+//           aria-expanded={open}
+//           aria-controls="discover-filter-body"
+//           className="btn btn-ghost btn-sm"
+//           style={{
+//             display: 'inline-flex',
+//             alignItems: 'center',
+//             gap: 8,
+//             padding: '8px 14px',
+//             minHeight: 40,
+//             fontWeight: 600,
+//             color: 'var(--brand-deep)',
+//             border: '1px solid color-mix(in oklab, var(--brand) 25%, var(--border))',
+//             background: 'var(--surface)',
+//           }}
+//         >
+//           ปรับการค้นหา
+//           {count > 0 && (
+//             <span
+//               style={{
+//                 display: 'inline-flex',
+//                 alignItems: 'center',
+//                 justifyContent: 'center',
+//                 minWidth: 20,
+//                 height: 20,
+//                 padding: '0 6px',
+//                 fontSize: 12,
+//                 fontWeight: 700,
+//                 color: 'white',
+//                 background: 'var(--accent-rose)',
+//                 borderRadius: 999,
+//               }}
+//             >
+//               {count}
+//             </span>
+//           )}
+//           <Chevron open={open} />
+//         </button>
+//         {count > 0 && (
+//           <button
+//             type="button"
+//             onClick={clearTags}
+//             className="btn btn-ghost btn-sm"
+//             style={{ padding: '4px 10px' }}
+//           >
+//             ล้างทั้งหมด
+//           </button>
+//         )}
+//       </div>
 
-      {!open && count > 0 && (
-        <div
-          style={{
-            marginTop: 10,
-            display: 'flex',
-            gap: 6,
-            overflowX: 'auto',
-            paddingBottom: 4,
-            WebkitOverflowScrolling: 'touch',
-          }}
-        >
-          {activeTags.map(t => (
-            <button
-              key={t}
-              onClick={() => toggleTag(t)}
-              className="tag"
-              title="คลิกเพื่อเอาออก"
-              style={{
-                cursor: 'pointer',
-                flexShrink: 0,
-                fontSize: 12.5,
-                background: 'color-mix(in oklab, var(--accent-rose) 22%, var(--surface))',
-                color: 'var(--accent-rose)',
-                border: '1px solid var(--accent-rose)',
-                fontWeight: 600,
-              }}
-            >
-              {t} ✕
-            </button>
-          ))}
-        </div>
-      )}
+//       {!open && count > 0 && (
+//         <div
+//           style={{
+//             marginTop: 10,
+//             display: 'flex',
+//             gap: 6,
+//             overflowX: 'auto',
+//             paddingBottom: 4,
+//             WebkitOverflowScrolling: 'touch',
+//           }}
+//         >
+//           {activeTags.map(t => (
+//             <button
+//               key={t}
+//               onClick={() => toggleTag(t)}
+//               className="tag"
+//               title="คลิกเพื่อเอาออก"
+//               style={{
+//                 cursor: 'pointer',
+//                 flexShrink: 0,
+//                 fontSize: 12.5,
+//                 background: 'color-mix(in oklab, var(--accent-rose) 22%, var(--surface))',
+//                 color: 'var(--accent-rose)',
+//                 border: '1px solid var(--accent-rose)',
+//                 fontWeight: 600,
+//               }}
+//             >
+//               {t} ✕
+//             </button>
+//           ))}
+//         </div>
+//       )}
 
-      <div
-        id="discover-filter-body"
-        hidden={!open}
-        style={{
-          marginTop: 12,
-          padding: 'clamp(14px, 2vw, 20px)',
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--r-md)',
-          boxShadow: 'var(--shadow-sm)',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-          gap: 18,
-        }}
-      >
-        {TAG_FILTERS.map(grp => (
-          <div key={grp.group}>
-            <div
-              style={{
-                marginBottom: 8,
-                color: 'var(--ink-1)',
-                fontWeight: 700,
-                fontSize: 12,
-                letterSpacing: '0.05em',
-                textTransform: 'uppercase',
-              }}
-            >
-              {grp.group}
-            </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {grp.tags.map(tag => {
-                const active = activeTags.includes(tag)
-                return (
-                  <button
-                    key={tag}
-                    onClick={() => toggleTag(tag)}
-                    className="tag"
-                    aria-pressed={active}
-                    style={{
-                      cursor: 'pointer',
-                      fontSize: 12.5,
-                      padding: '5px 11px',
-                      border: active
-                        ? '1px solid var(--accent-rose)'
-                        : '1px solid color-mix(in oklab, var(--brand) 35%, var(--border-strong))',
-                      background: active
-                        ? 'color-mix(in oklab, var(--accent-rose) 22%, var(--surface))'
-                        : 'var(--surface)',
-                      color: active ? 'var(--accent-rose)' : 'var(--ink-1)',
-                      fontWeight: active ? 700 : 600,
-                    }}
-                  >
-                    {active ? '✓ ' : ''}{tag}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
+//       <div
+//         id="discover-filter-body"
+//         hidden={!open}
+//         style={{
+//           marginTop: 12,
+//           padding: 'clamp(14px, 2vw, 20px)',
+//           background: 'var(--surface)',
+//           border: '1px solid var(--border)',
+//           borderRadius: 'var(--r-md)',
+//           boxShadow: 'var(--shadow-sm)',
+//           display: 'grid',
+//           gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+//           gap: 18,
+//         }}
+//       >
+//         {TAG_FILTERS.map(grp => (
+//           <div key={grp.group}>
+//             <div
+//               style={{
+//                 marginBottom: 8,
+//                 color: 'var(--ink-1)',
+//                 fontWeight: 700,
+//                 fontSize: 12,
+//                 letterSpacing: '0.05em',
+//                 textTransform: 'uppercase',
+//               }}
+//             >
+//               {grp.group}
+//             </div>
+//             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+//               {grp.tags.map(tag => {
+//                 const active = activeTags.includes(tag)
+//                 return (
+//                   <button
+//                     key={tag}
+//                     onClick={() => toggleTag(tag)}
+//                     className="tag"
+//                     aria-pressed={active}
+//                     style={{
+//                       cursor: 'pointer',
+//                       fontSize: 12.5,
+//                       padding: '5px 11px',
+//                       border: active
+//                         ? '1px solid var(--accent-rose)'
+//                         : '1px solid color-mix(in oklab, var(--brand) 35%, var(--border-strong))',
+//                       background: active
+//                         ? 'color-mix(in oklab, var(--accent-rose) 22%, var(--surface))'
+//                         : 'var(--surface)',
+//                       color: active ? 'var(--accent-rose)' : 'var(--ink-1)',
+//                       fontWeight: active ? 700 : 600,
+//                     }}
+//                   >
+//                     {active ? '✓ ' : ''}{tag}
+//                   </button>
+//                 )
+//               })}
+//             </div>
+//           </div>
+//         ))}
+//       </div>
+//     </div>
+//   )
+// }
 
 function HitCard({
   hit,
